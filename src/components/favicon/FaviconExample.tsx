@@ -3,7 +3,13 @@
 import { useState } from "react";
 import { useFavicon } from "@/hooks/use-favicon";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, Globe, Check, X } from "lucide-react";
 
@@ -19,29 +25,31 @@ export default function FaviconExample() {
     {
       name: "Default",
       url: "/favicon.ico",
-      description: "Original favicon"
+      description: "Original favicon",
     },
     {
       name: "Emoji Heart",
       url: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>❤️</text></svg>",
-      description: "Heart emoji favicon"
+      description: "Heart emoji favicon",
     },
     {
       name: "Emoji Star",
       url: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⭐</text></svg>",
-      description: "Star emoji favicon"
+      description: "Star emoji favicon",
     },
     {
       name: "Emoji Rocket",
       url: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>",
-      description: "Rocket emoji favicon"
-    }
+      description: "Rocket emoji favicon",
+    },
   ];
 
   const handleTestFavicon = (url: string) => {
     // This would typically update the favicon via the admin interface
     // For demo purposes, we'll just show an alert
-    alert(`To change favicon to: ${url}\n\nGo to Admin Panel > Content > Favicon tab to update it!`);
+    alert(
+      `To change favicon to: ${url}\n\nGo to Admin Panel > Content > Favicon tab to update it!`
+    );
   };
 
   if (loading) {
@@ -78,12 +86,12 @@ export default function FaviconExample() {
           <div className="space-y-2">
             <h4 className="text-sm font-medium">Current Favicon</h4>
             <div className="flex items-center space-x-3">
-              <img 
-                src={favicon.url} 
+              <img
+                src={favicon.url}
                 alt={favicon.altText}
                 className="w-8 h-8 object-contain border rounded"
                 onError={(e) => {
-                  e.currentTarget.style.display = 'none';
+                  e.currentTarget.style.display = "none";
                 }}
               />
               <div>
@@ -96,9 +104,11 @@ export default function FaviconExample() {
           </div>
         ) : (
           <div className="text-center py-4">
-            <p className="text-sm text-muted-foreground">No favicon configured</p>
+            <p className="text-sm text-muted-foreground">
+              No favicon configured
+            </p>
             <p className="text-xs text-muted-foreground mt-1">
-              Go to Admin Panel > Content > Favicon to set one up
+              Go to Admin Panel &gt; Content &gt; Favicon to set one up
             </p>
           </div>
         )}
@@ -121,7 +131,9 @@ export default function FaviconExample() {
         </div>
 
         <div className="text-xs text-muted-foreground space-y-1 pt-2 border-t">
-          <p><strong>How to change favicon:</strong></p>
+          <p>
+            <strong>How to change favicon:</strong>
+          </p>
           <ol className="list-decimal list-inside space-y-1 ml-2">
             <li>Go to Admin Panel → Content → Favicon tab</li>
             <li>Upload a file or enter a URL</li>
