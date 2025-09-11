@@ -2,10 +2,11 @@
 
 import BreadcrumbProduct from "@/components/product-page/BreadcrumbProduct";
 import Header from "@/components/product-page/Header";
+import ProductDetailsSkeleton from "@/components/product-page/ProductDetailsSkeleton";
 import { useGetSingleProductQuery } from "@/lib/features/products/productApi";
 import { Tabs } from "@radix-ui/react-tabs";
 import { notFound } from "next/navigation";
-import React, { FC } from "react";
+import React, { FC, useEffect } from "react";
 
 interface IProductDetails {
   id: string;
@@ -14,7 +15,17 @@ interface IProductDetails {
 const ProductDetails: FC<IProductDetails> = ({ id }) => {
   const { data, isLoading, error } = useGetSingleProductQuery(id);
 
+  // Scroll to top when component mounts
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   console.log("", data);
+
+  // Show skeleton while loading
+  if (isLoading) {
+    return <ProductDetailsSkeleton />;
+  }
 
   if (!isLoading && (!data || !data.success)) {
     notFound(); // fallback if the product wasn't found

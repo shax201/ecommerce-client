@@ -83,10 +83,18 @@ const Header = ({ data }: { data: Product }) => {
             a soft and breathable fabric, it offers superior comfort and style.
           </p>
           <hr className="h-[1px] border-t-black/10 mb-5" />
-          <ColorSelection colors={data.variants.color} />
-          <hr className="h-[1px] border-t-black/10 my-5" />
-          <SizeSelection sizes={data.variants.size} />
-          <hr className="hidden md:block h-[1px] border-t-black/10 my-5" />
+          {data.variants.color && data.variants.color.length > 0 && (
+            <>
+              <ColorSelection colors={data.variants.color} />
+              <hr className="h-[1px] border-t-black/10 my-5" />
+            </>
+          )}
+          {data.variants.size && data.variants.size.length > 0 && (
+            <>
+              <SizeSelection sizes={data.variants.size} />
+              <hr className="hidden md:block h-[1px] border-t-black/10 my-5" />
+            </>
+          )}
           <AddToCardSection data={data} />
         </div>
       </div>
