@@ -1,0 +1,216 @@
+/* Custom animations for the View Website button - DANCING VERSION! */
+
+@keyframes sparkle-rotate {
+  0% { transform: rotate(0deg) scale(1); }
+  25% { transform: rotate(90deg) scale(1.2); }
+  50% { transform: rotate(180deg) scale(0.8); }
+  75% { transform: rotate(270deg) scale(1.1); }
+  100% { transform: rotate(360deg) scale(1); }
+}
+
+@keyframes rainbow-pulse {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes float-up {
+  0% { transform: translateY(0px) rotate(0deg); opacity: 1; }
+  50% { transform: translateY(-10px) rotate(180deg); opacity: 0.8; }
+  100% { transform: translateY(-20px) rotate(360deg); opacity: 0; }
+}
+
+@keyframes wiggle {
+  0%, 7%, 93%, 100% { transform: rotate(0deg); }
+  15% { transform: rotate(5deg); }
+  22% { transform: rotate(-5deg); }
+  30% { transform: rotate(3deg); }
+  35% { transform: rotate(-2deg); }
+  40% { transform: rotate(1deg); }
+  45% { transform: rotate(-1deg); }
+}
+
+/* NEW DANCING ANIMATIONS */
+@keyframes dance-bounce {
+  0%, 100% { 
+    transform: translateY(0px) rotate(0deg) scale(1); 
+  }
+  10% { 
+    transform: translateY(-8px) rotate(2deg) scale(1.05); 
+  }
+  20% { 
+    transform: translateY(-4px) rotate(-1deg) scale(1.02); 
+  }
+  30% { 
+    transform: translateY(-12px) rotate(1deg) scale(1.08); 
+  }
+  40% { 
+    transform: translateY(-6px) rotate(-2deg) scale(1.03); 
+  }
+  50% { 
+    transform: translateY(-10px) rotate(1deg) scale(1.06); 
+  }
+  60% { 
+    transform: translateY(-3px) rotate(-1deg) scale(1.01); 
+  }
+  70% { 
+    transform: translateY(-9px) rotate(2deg) scale(1.04); 
+  }
+  80% { 
+    transform: translateY(-5px) rotate(-1deg) scale(1.02); 
+  }
+  90% { 
+    transform: translateY(-7px) rotate(1deg) scale(1.03); 
+  }
+}
+
+@keyframes dance-shake {
+  0%, 100% { transform: translateX(0px) rotate(0deg); }
+  10% { transform: translateX(-3px) rotate(-1deg); }
+  20% { transform: translateX(3px) rotate(1deg); }
+  30% { transform: translateX(-2px) rotate(-0.5deg); }
+  40% { transform: translateX(2px) rotate(0.5deg); }
+  50% { transform: translateX(-1px) rotate(-0.3deg); }
+  60% { transform: translateX(1px) rotate(0.3deg); }
+  70% { transform: translateX(-2px) rotate(-0.5deg); }
+  80% { transform: translateX(2px) rotate(0.5deg); }
+  90% { transform: translateX(-1px) rotate(-0.2deg); }
+}
+
+@keyframes dance-rotate {
+  0% { transform: rotate(0deg) scale(1); }
+  25% { transform: rotate(5deg) scale(1.1); }
+  50% { transform: rotate(0deg) scale(1); }
+  75% { transform: rotate(-5deg) scale(1.1); }
+  100% { transform: rotate(0deg) scale(1); }
+}
+
+@keyframes dance-pulse {
+  0%, 100% { 
+    transform: scale(1);
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+  }
+  25% { 
+    transform: scale(1.05);
+    box-shadow: 0 0 30px rgba(255, 255, 255, 0.5);
+  }
+  50% { 
+    transform: scale(1.1);
+    box-shadow: 0 0 40px rgba(255, 255, 255, 0.7);
+  }
+  75% { 
+    transform: scale(1.05);
+    box-shadow: 0 0 30px rgba(255, 255, 255, 0.5);
+  }
+}
+
+@keyframes dance-glow {
+  0%, 100% { 
+    filter: brightness(1) drop-shadow(0 0 10px rgba(255, 255, 255, 0.3));
+  }
+  50% { 
+    filter: brightness(1.2) drop-shadow(0 0 20px rgba(255, 255, 255, 0.8));
+  }
+}
+
+@keyframes dance-text {
+  0%, 100% { 
+    transform: translateY(0px) scale(1);
+  }
+  25% { 
+    transform: translateY(-2px) scale(1.02);
+  }
+  50% { 
+    transform: translateY(0px) scale(1.05);
+  }
+  75% { 
+    transform: translateY(-1px) scale(1.02);
+  }
+}
+
+.animated-button {
+  background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
+  background-size: 400% 400%;
+  animation: 
+    rainbow-pulse 3s ease infinite,
+    dance-bounce 2s ease-in-out infinite,
+    dance-pulse 1.5s ease-in-out infinite,
+    dance-glow 2s ease-in-out infinite;
+  position: relative;
+  overflow: visible;
+}
+
+.animated-button:hover {
+  animation: 
+    wiggle 0.6s ease-in-out,
+    dance-shake 0.8s ease-in-out,
+    dance-rotate 1s ease-in-out;
+}
+
+.animated-button:active {
+  animation: dance-bounce 0.3s ease-in-out;
+}
+
+.sparkle-icon {
+  animation: 
+    sparkle-rotate 2s linear infinite,
+    dance-bounce 1.5s ease-in-out infinite;
+}
+
+.floating-particle {
+  animation: float-up 2s ease-out infinite;
+}
+
+.floating-particle:nth-child(1) { 
+  animation-delay: 0s; 
+  animation: float-up 2s ease-out infinite, dance-bounce 1.8s ease-in-out infinite;
+}
+.floating-particle:nth-child(2) { 
+  animation-delay: 0.5s; 
+  animation: float-up 2s ease-out infinite, dance-bounce 1.6s ease-in-out infinite;
+}
+.floating-particle:nth-child(3) { 
+  animation-delay: 1s; 
+  animation: float-up 2s ease-out infinite, dance-bounce 1.4s ease-in-out infinite;
+}
+.floating-particle:nth-child(4) { 
+  animation-delay: 1.5s; 
+  animation: float-up 2s ease-out infinite, dance-bounce 1.2s ease-in-out infinite;
+}
+
+/* Dancing text animation */
+.dancing-text {
+  animation: dance-text 1.2s ease-in-out infinite;
+  display: inline-block;
+}
+
+/* Hover tooltip animation */
+.hover-tooltip {
+  animation: bounce 1s infinite, dance-bounce 1.5s ease-in-out infinite;
+}
+
+/* Custom bounce with more personality */
+@keyframes bounce {
+  0%, 20%, 53%, 80%, 100% {
+    transform: translate3d(0,0,0) scale(1);
+  }
+  40%, 43% {
+    transform: translate3d(0, -8px, 0) scale(1.1);
+  }
+  70% {
+    transform: translate3d(0, -4px, 0) scale(1.05);
+  }
+  90% {
+    transform: translate3d(0, -2px, 0) scale(1.02);
+  }
+}
+
+/* Additional dancing elements */
+.dancing-element {
+  animation: dance-bounce 2s ease-in-out infinite;
+}
+
+.dancing-element:nth-child(1) { animation-delay: 0.1s; }
+.dancing-element:nth-child(2) { animation-delay: 0.3s; }
+.dancing-element:nth-child(3) { animation-delay: 0.5s; }
+.dancing-element:nth-child(4) { animation-delay: 0.7s; }

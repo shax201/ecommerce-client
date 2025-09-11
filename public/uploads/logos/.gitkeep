@@ -1,0 +1,2 @@
+# This file ensures the uploads/logos directory is created
+# In production, this directory should be handled by your file storage service
