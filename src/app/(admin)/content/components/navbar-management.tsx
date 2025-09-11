@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -51,17 +51,17 @@ import {
   useSensor,
   useSensors,
   DragEndEvent,
-} from '@dnd-kit/core';
+} from "@dnd-kit/core";
 import {
   arrayMove,
   SortableContext,
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
-} from '@dnd-kit/sortable';
-import {
-  useSortable,
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
+} from "@dnd-kit/sortable";
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { useNavbarManagementISR } from "@/hooks/use-navbar-isr";
+import { handleNavbarUpdate } from "@/actions/revalidate";
 // Temporary mock types until navbar-service is properly recognized
 type NavbarData = {
   _id?: string;
@@ -75,7 +75,7 @@ type NavbarMenuData = {
   _id?: string;
   id: number;
   label: string;
-  type: 'MenuItem' | 'MenuList';
+  type: "MenuItem" | "MenuList";
   url?: string;
   children?: NavbarMenuItemData[];
   isActive: boolean;
@@ -99,7 +99,7 @@ type NavbarMenuItemData = {
 type CreateNavbarMenuData = {
   id: number;
   label: string;
-  type: 'MenuItem' | 'MenuList';
+  type: "MenuItem" | "MenuList";
   url?: string;
   children?: CreateNavbarMenuItemData[];
   isActive?: boolean;
@@ -117,7 +117,7 @@ type CreateNavbarMenuItemData = {
 
 type UpdateNavbarMenuData = {
   label?: string;
-  type?: 'MenuItem' | 'MenuList';
+  type?: "MenuItem" | "MenuList";
   url?: string;
   children?: CreateNavbarMenuItemData[];
   isActive?: boolean;
@@ -150,7 +150,7 @@ const navbarService = {
               url: "/shop#men-clothes",
               description: "In attractive and spectacular colors and designs",
               isActive: true,
-              order: 1
+              order: 1,
             },
             {
               id: 12,
@@ -158,7 +158,7 @@ const navbarService = {
               url: "/shop#women-clothes",
               description: "Ladies, your style and tastes are important to us",
               isActive: true,
-              order: 2
+              order: 2,
             },
             {
               id: 13,
@@ -166,7 +166,7 @@ const navbarService = {
               url: "/shop#kids-clothes",
               description: "For all ages, with happy and beautiful colors",
               isActive: true,
-              order: 3
+              order: 3,
             },
             {
               id: 14,
@@ -174,11 +174,11 @@ const navbarService = {
               url: "/shop#bag-shoes",
               description: "Suitable for men, women and all tastes and styles",
               isActive: true,
-              order: 4
-            }
+              order: 4,
+            },
           ],
           isActive: true,
-          order: 1
+          order: 1,
         },
         {
           id: 2,
@@ -186,7 +186,7 @@ const navbarService = {
           label: "On Sale",
           url: "/shop#on-sale",
           isActive: true,
-          order: 2
+          order: 2,
         },
         {
           id: 3,
@@ -194,7 +194,7 @@ const navbarService = {
           label: "New Arrivals",
           url: "/shop#new-arrivals",
           isActive: true,
-          order: 3
+          order: 3,
         },
         {
           id: 4,
@@ -202,10 +202,10 @@ const navbarService = {
           label: "Brands",
           url: "/shop#brands",
           isActive: true,
-          order: 4
-        }
+          order: 4,
+        },
       ],
-      isActive: true
+      isActive: true,
     };
   },
 
@@ -214,12 +214,17 @@ const navbarService = {
     return data;
   },
 
-  async addNavbarMenu(data: CreateNavbarMenuData | UpdateNavbarMenuData): Promise<NavbarData | null> {
+  async addNavbarMenu(
+    data: CreateNavbarMenuData | UpdateNavbarMenuData
+  ): Promise<NavbarData | null> {
     console.log("Mock addNavbarMenu called with:", data);
     return null;
   },
 
-  async updateNavbarMenu(menuId: number, data: UpdateNavbarMenuData): Promise<NavbarData | null> {
+  async updateNavbarMenu(
+    menuId: number,
+    data: UpdateNavbarMenuData
+  ): Promise<NavbarData | null> {
     console.log("Mock updateNavbarMenu called with:", menuId, data);
     return null;
   },
@@ -229,19 +234,34 @@ const navbarService = {
     return null;
   },
 
-  async addNavbarMenuItem(menuId: number, data: CreateNavbarMenuItemData | UpdateNavbarMenuItemData): Promise<NavbarData | null> {
+  async addNavbarMenuItem(
+    menuId: number,
+    data: CreateNavbarMenuItemData | UpdateNavbarMenuItemData
+  ): Promise<NavbarData | null> {
     console.log("Mock addNavbarMenuItem called with:", menuId, data);
     // In a real implementation, this would call the API
     // For now, simulate adding the menu item
     return null; // Let the UI handle the state update
   },
 
-  async updateNavbarMenuItem(menuId: number, menuItemId: number, data: UpdateNavbarMenuItemData): Promise<NavbarData | null> {
-    console.log("Mock updateNavbarMenuItem called with:", menuId, menuItemId, data);
+  async updateNavbarMenuItem(
+    menuId: number,
+    menuItemId: number,
+    data: UpdateNavbarMenuItemData
+  ): Promise<NavbarData | null> {
+    console.log(
+      "Mock updateNavbarMenuItem called with:",
+      menuId,
+      menuItemId,
+      data
+    );
     return null;
   },
 
-  async deleteNavbarMenuItem(menuId: number, menuItemId: number): Promise<NavbarData | null> {
+  async deleteNavbarMenuItem(
+    menuId: number,
+    menuItemId: number
+  ): Promise<NavbarData | null> {
     console.log("Mock deleteNavbarMenuItem called with:", menuId, menuItemId);
     return null;
   },
@@ -253,7 +273,10 @@ const navbarService = {
     return null;
   },
 
-  async reorderNavbarMenuItems(menuId: number, updates: any[]): Promise<NavbarData | null> {
+  async reorderNavbarMenuItems(
+    menuId: number,
+    updates: any[]
+  ): Promise<NavbarData | null> {
     console.log("Mock reorderNavbarMenuItems called with:", menuId, updates);
     // In a real implementation, this would call the API
     // For now, just return null to let the UI handle the state
@@ -276,7 +299,7 @@ function MenuForm({
   const [formData, setFormData] = useState({
     id: menu?.id || 0,
     label: menu?.label || "",
-    type: menu?.type || "MenuItem" as "MenuItem" | "MenuList",
+    type: menu?.type || ("MenuItem" as "MenuItem" | "MenuList"),
     url: menu?.url || "",
     isActive: menu?.isActive ?? true,
     order: menu?.order || 1,
@@ -295,11 +318,13 @@ function MenuForm({
           id="id"
           type="number"
           value={formData.id}
-          onChange={(e) => setFormData({ ...formData, id: parseInt(e.target.value) || 0 })}
+          onChange={(e) =>
+            setFormData({ ...formData, id: parseInt(e.target.value) || 0 })
+          }
           required
         />
       </div>
-      
+
       <div className="space-y-2">
         <Label htmlFor="label">Label</Label>
         <Input
@@ -314,7 +339,9 @@ function MenuForm({
         <Label htmlFor="type">Type</Label>
         <Select
           value={formData.type}
-          onValueChange={(value: "MenuItem" | "MenuList") => setFormData({ ...formData, type: value })}
+          onValueChange={(value: "MenuItem" | "MenuList") =>
+            setFormData({ ...formData, type: value })
+          }
         >
           <SelectTrigger>
             <SelectValue />
@@ -344,7 +371,9 @@ function MenuForm({
           id="order"
           type="number"
           value={formData.order}
-          onChange={(e) => setFormData({ ...formData, order: parseInt(e.target.value) || 1 })}
+          onChange={(e) =>
+            setFormData({ ...formData, order: parseInt(e.target.value) || 1 })
+          }
         />
       </div>
 
@@ -353,7 +382,9 @@ function MenuForm({
           type="checkbox"
           id="isActive"
           checked={formData.isActive}
-          onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+          onChange={(e) =>
+            setFormData({ ...formData, isActive: e.target.checked })
+          }
         />
         <Label htmlFor="isActive">Active</Label>
       </div>
@@ -409,11 +440,13 @@ function MenuItemForm({
           id="id"
           type="number"
           value={formData.id}
-          onChange={(e) => setFormData({ ...formData, id: parseInt(e.target.value) || 0 })}
+          onChange={(e) =>
+            setFormData({ ...formData, id: parseInt(e.target.value) || 0 })
+          }
           required
         />
       </div>
-      
+
       <div className="space-y-2">
         <Label htmlFor="label">Label</Label>
         <Input
@@ -439,7 +472,9 @@ function MenuItemForm({
         <Textarea
           id="description"
           value={formData.description}
-          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+          onChange={(e) =>
+            setFormData({ ...formData, description: e.target.value })
+          }
           placeholder="Optional description for the menu item"
         />
       </div>
@@ -450,7 +485,9 @@ function MenuItemForm({
           id="order"
           type="number"
           value={formData.order}
-          onChange={(e) => setFormData({ ...formData, order: parseInt(e.target.value) || 1 })}
+          onChange={(e) =>
+            setFormData({ ...formData, order: parseInt(e.target.value) || 1 })
+          }
         />
       </div>
 
@@ -459,7 +496,9 @@ function MenuItemForm({
           type="checkbox"
           id="isActive"
           checked={formData.isActive}
-          onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+          onChange={(e) =>
+            setFormData({ ...formData, isActive: e.target.checked })
+          }
         />
         <Label htmlFor="isActive">Active</Label>
       </div>
@@ -481,11 +520,24 @@ function MenuItemForm({
   );
 }
 
-export function NavbarManagement() {
+interface NavbarManagementProps {
+  navbarData?: any;
+}
+
+export function NavbarManagement({ navbarData }: NavbarManagementProps) {
+  // Use the custom ISR hook for better data management
+  const {
+    navbar: isrNavbar,
+    loading: isLoading,
+    error: isrError,
+    dataSource,
+    performanceMetrics,
+  } = useNavbarManagementISR({ navbarData });
+
   const [navbar, setNavbar] = useState<NavbarData | null>(null);
   const [editingMenu, setEditingMenu] = useState<NavbarMenuData | null>(null);
-  const [editingMenuItem, setEditingMenuItem] = useState<NavbarMenuItemData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [editingMenuItem, setEditingMenuItem] =
+    useState<NavbarMenuItemData | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isMenuDialogOpen, setIsMenuDialogOpen] = useState(false);
   const [isMenuItemDialogOpen, setIsMenuItemDialogOpen] = useState(false);
@@ -499,23 +551,39 @@ export function NavbarManagement() {
     })
   );
 
-  // Load navbar on component mount
+  // Load navbar on component mount and when ISR data changes
   useEffect(() => {
-    loadNavbar();
-  }, []);
+    if (isrNavbar) {
+      // Use ISR data if available
+      setNavbar(isrNavbar);
+    } else {
+      // Fallback to mock data if no ISR data
+      loadNavbar();
+    }
+  }, [isrNavbar]);
 
   const loadNavbar = async () => {
     try {
-      setIsLoading(true);
+      // Fallback to mock service if no ISR data
       const navbarData = await navbarService.getNavbar();
       setNavbar(navbarData);
     } catch (error) {
       console.error("Error loading navbar:", error);
       toast.error("Failed to load navbar data");
-    } finally {
-      setIsLoading(false);
     }
   };
+
+  // Debug logging (only in development)
+  if (process.env.NODE_ENV === "development") {
+    console.log("🔍 NavbarManagement ISR Debug:", {
+      isLoading,
+      isrError,
+      dataSource,
+      performanceMetrics,
+      hasNavbar: !!navbar,
+      menuCount: navbar?.menus?.length || 0,
+    });
+  }
 
   const handleSaveNavbar = async () => {
     if (!navbar) return;
@@ -524,6 +592,9 @@ export function NavbarManagement() {
       setIsSaving(true);
       await navbarService.updateNavbar(navbar);
       toast.success("Navbar updated successfully");
+
+      // Trigger ISR cache revalidation
+      await handleNavbarUpdate();
     } catch (error) {
       console.error("Error saving navbar:", error);
       toast.error("Failed to save navbar");
@@ -532,11 +603,13 @@ export function NavbarManagement() {
     }
   };
 
-  const handleAddMenu = async (menuData: CreateNavbarMenuData | UpdateNavbarMenuData) => {
+  const handleAddMenu = async (
+    menuData: CreateNavbarMenuData | UpdateNavbarMenuData
+  ) => {
     try {
       setIsSaving(true);
       const updatedNavbar = await navbarService.addNavbarMenu(menuData);
-      
+
       // If the service returns null (mock), update the UI state directly
       if (!updatedNavbar && navbar) {
         const newMenu: NavbarMenuData = {
@@ -545,24 +618,32 @@ export function NavbarManagement() {
           type: (menuData as CreateNavbarMenuData).type,
           url: (menuData as CreateNavbarMenuData).url,
           isActive: menuData.isActive ?? true,
-          order: menuData.order ?? (navbar.menus.length + 1),
-          children: ((menuData as CreateNavbarMenuData).children || []).map(child => ({
-            id: child.id,
-            label: child.label,
-            url: child.url,
-            description: child.description,
-            isActive: child.isActive ?? true,
-            order: child.order ?? 1
-          }))
+          order: menuData.order ?? navbar.menus.length + 1,
+          children: ((menuData as CreateNavbarMenuData).children || []).map(
+            (child) => ({
+              id: child.id,
+              label: child.label,
+              url: child.url,
+              description: child.description,
+              isActive: child.isActive ?? true,
+              order: child.order ?? 1,
+            })
+          ),
         };
-        
+
         setNavbar({ ...navbar, menus: [...navbar.menus, newMenu] });
         toast.success("Menu added successfully");
         setIsMenuDialogOpen(false);
+
+        // Trigger ISR cache revalidation
+        await handleNavbarUpdate();
       } else if (updatedNavbar) {
         setNavbar(updatedNavbar);
         toast.success("Menu added successfully");
         setIsMenuDialogOpen(false);
+
+        // Trigger ISR cache revalidation
+        await handleNavbarUpdate();
       }
     } catch (error) {
       console.error("Error adding menu:", error);
@@ -572,40 +653,56 @@ export function NavbarManagement() {
     }
   };
 
-  const handleUpdateMenu = async (menuId: number, menuData: UpdateNavbarMenuData) => {
+  const handleUpdateMenu = async (
+    menuId: number,
+    menuData: UpdateNavbarMenuData
+  ) => {
     try {
       setIsSaving(true);
-      const updatedNavbar = await navbarService.updateNavbarMenu(menuId, menuData);
-      
+      const updatedNavbar = await navbarService.updateNavbarMenu(
+        menuId,
+        menuData
+      );
+
       // If the service returns null (mock), update the UI state directly
       if (!updatedNavbar && navbar) {
-        const updatedMenus = navbar.menus.map(menu => 
-          menu.id === menuId ? { 
-            ...menu, 
-            ...(menuData.label && { label: menuData.label }),
-            ...(menuData.type && { type: menuData.type }),
-            ...(menuData.url !== undefined && { url: menuData.url }),
-            ...(menuData.isActive !== undefined && { isActive: menuData.isActive }),
-            ...(menuData.order !== undefined && { order: menuData.order }),
-            ...(menuData.children && { 
-              children: menuData.children.map(child => ({
-                id: child.id,
-                label: child.label,
-                url: child.url,
-                description: child.description,
-                isActive: child.isActive ?? true,
-                order: child.order ?? 1
-              }))
-            })
-          } : menu
+        const updatedMenus = navbar.menus.map((menu) =>
+          menu.id === menuId
+            ? {
+                ...menu,
+                ...(menuData.label && { label: menuData.label }),
+                ...(menuData.type && { type: menuData.type }),
+                ...(menuData.url !== undefined && { url: menuData.url }),
+                ...(menuData.isActive !== undefined && {
+                  isActive: menuData.isActive,
+                }),
+                ...(menuData.order !== undefined && { order: menuData.order }),
+                ...(menuData.children && {
+                  children: menuData.children.map((child) => ({
+                    id: child.id,
+                    label: child.label,
+                    url: child.url,
+                    description: child.description,
+                    isActive: child.isActive ?? true,
+                    order: child.order ?? 1,
+                  })),
+                }),
+              }
+            : menu
         );
         setNavbar({ ...navbar, menus: updatedMenus });
         toast.success("Menu updated successfully");
         setEditingMenu(null);
+
+        // Trigger ISR cache revalidation
+        await handleNavbarUpdate();
       } else if (updatedNavbar) {
         setNavbar(updatedNavbar);
         toast.success("Menu updated successfully");
         setEditingMenu(null);
+
+        // Trigger ISR cache revalidation
+        await handleNavbarUpdate();
       }
     } catch (error) {
       console.error("Error updating menu:", error);
@@ -619,15 +716,21 @@ export function NavbarManagement() {
     try {
       setIsSaving(true);
       const updatedNavbar = await navbarService.deleteNavbarMenu(menuId);
-      
+
       // If the service returns null (mock), update the UI state directly
       if (!updatedNavbar && navbar) {
-        const updatedMenus = navbar.menus.filter(menu => menu.id !== menuId);
+        const updatedMenus = navbar.menus.filter((menu) => menu.id !== menuId);
         setNavbar({ ...navbar, menus: updatedMenus });
         toast.success("Menu deleted successfully");
+
+        // Trigger ISR cache revalidation
+        await handleNavbarUpdate();
       } else if (updatedNavbar) {
         setNavbar(updatedNavbar);
         toast.success("Menu deleted successfully");
+
+        // Trigger ISR cache revalidation
+        await handleNavbarUpdate();
       }
     } catch (error) {
       console.error("Error deleting menu:", error);
@@ -637,29 +740,35 @@ export function NavbarManagement() {
     }
   };
 
-  const handleAddMenuItem = async (menuId: number, menuItemData: CreateNavbarMenuItemData | UpdateNavbarMenuItemData) => {
+  const handleAddMenuItem = async (
+    menuId: number,
+    menuItemData: CreateNavbarMenuItemData | UpdateNavbarMenuItemData
+  ) => {
     try {
       setIsSaving(true);
-      const updatedNavbar = await navbarService.addNavbarMenuItem(menuId, menuItemData);
-      
+      const updatedNavbar = await navbarService.addNavbarMenuItem(
+        menuId,
+        menuItemData
+      );
+
       // If the service returns null (mock), update the UI state directly
       if (!updatedNavbar && navbar) {
-        const updatedMenus = navbar.menus.map(menu => {
+        const updatedMenus = navbar.menus.map((menu) => {
           if (menu.id === menuId && menu.children) {
             const newMenuItem = {
               ...menuItemData,
               isActive: menuItemData.isActive ?? true,
-              order: menuItemData.order ?? (menu.children.length + 1)
+              order: menuItemData.order ?? menu.children.length + 1,
             } as NavbarMenuItemData;
-            
+
             return {
               ...menu,
-              children: [...menu.children, newMenuItem]
+              children: [...menu.children, newMenuItem],
             };
           }
           return menu;
         });
-        
+
         setNavbar({ ...navbar, menus: updatedMenus });
         toast.success("Menu item added successfully");
         setIsMenuItemDialogOpen(false);
@@ -678,16 +787,24 @@ export function NavbarManagement() {
     }
   };
 
-  const handleUpdateMenuItem = async (menuId: number, menuItemId: number, menuItemData: UpdateNavbarMenuItemData) => {
+  const handleUpdateMenuItem = async (
+    menuId: number,
+    menuItemId: number,
+    menuItemData: UpdateNavbarMenuItemData
+  ) => {
     try {
       setIsSaving(true);
-      const updatedNavbar = await navbarService.updateNavbarMenuItem(menuId, menuItemId, menuItemData);
-      
+      const updatedNavbar = await navbarService.updateNavbarMenuItem(
+        menuId,
+        menuItemId,
+        menuItemData
+      );
+
       // If the service returns null (mock), update the UI state directly
       if (!updatedNavbar && navbar) {
-        const updatedMenus = navbar.menus.map(menu => {
+        const updatedMenus = navbar.menus.map((menu) => {
           if (menu.id === menuId && menu.children) {
-            const updatedChildren = menu.children.map(item =>
+            const updatedChildren = menu.children.map((item) =>
               item.id === menuItemId ? { ...item, ...menuItemData } : item
             );
             return { ...menu, children: updatedChildren };
@@ -713,13 +830,18 @@ export function NavbarManagement() {
   const handleDeleteMenuItem = async (menuId: number, menuItemId: number) => {
     try {
       setIsSaving(true);
-      const updatedNavbar = await navbarService.deleteNavbarMenuItem(menuId, menuItemId);
-      
+      const updatedNavbar = await navbarService.deleteNavbarMenuItem(
+        menuId,
+        menuItemId
+      );
+
       // If the service returns null (mock), update the UI state directly
       if (!updatedNavbar && navbar) {
-        const updatedMenus = navbar.menus.map(menu => {
+        const updatedMenus = navbar.menus.map((menu) => {
           if (menu.id === menuId && menu.children) {
-            const updatedChildren = menu.children.filter(item => item.id !== menuItemId);
+            const updatedChildren = menu.children.filter(
+              (item) => item.id !== menuItemId
+            );
             return { ...menu, children: updatedChildren };
           }
           return menu;
@@ -740,7 +862,7 @@ export function NavbarManagement() {
 
   const toggleMenuActive = (menuId: number) => {
     if (!navbar) return;
-    
+
     const updatedMenus = navbar.menus.map((menu: NavbarMenuData) =>
       menu.id === menuId ? { ...menu, isActive: !menu.isActive } : menu
     );
@@ -749,7 +871,7 @@ export function NavbarManagement() {
 
   const toggleMenuItemActive = (menuId: number, menuItemId: number) => {
     if (!navbar) return;
-    
+
     const updatedMenus = navbar.menus.map((menu: NavbarMenuData) => {
       if (menu.id === menuId && menu.children) {
         const updatedChildren = menu.children.map((item: NavbarMenuItemData) =>
@@ -772,28 +894,38 @@ export function NavbarManagement() {
     const overId = over.id;
 
     // Check if we're dragging menus
-    if (activeId.toString().startsWith('menu-') && overId.toString().startsWith('menu-')) {
-      const activeIndex = navbar.menus.findIndex(menu => `menu-${menu.id}` === activeId);
-      const overIndex = navbar.menus.findIndex(menu => `menu-${menu.id}` === overId);
+    if (
+      activeId.toString().startsWith("menu-") &&
+      overId.toString().startsWith("menu-")
+    ) {
+      const activeIndex = navbar.menus.findIndex(
+        (menu) => `menu-${menu.id}` === activeId
+      );
+      const overIndex = navbar.menus.findIndex(
+        (menu) => `menu-${menu.id}` === overId
+      );
 
       if (activeIndex !== overIndex) {
         const newMenus = arrayMove(navbar.menus, activeIndex, overIndex);
         // Update order numbers
         const updatedMenus = newMenus.map((menu, index) => ({
           ...menu,
-          order: index + 1
+          order: index + 1,
         }));
-        
+
         setNavbar({ ...navbar, menus: updatedMenus });
-        
+
         // Save the new order
         try {
           const updates = updatedMenus.map((menu, index) => ({
             id: menu.id,
-            order: index + 1
+            order: index + 1,
           }));
           await navbarService.reorderNavbarMenus([{ updates }]);
           toast.success("Menu order updated successfully");
+
+          // Trigger ISR cache revalidation
+          await handleNavbarUpdate();
         } catch (error) {
           console.error("Error reordering menus:", error);
           toast.error("Failed to update menu order");
@@ -801,43 +933,61 @@ export function NavbarManagement() {
       }
     }
     // Check if we're dragging menu items
-    else if (activeId.toString().startsWith('item-') && overId.toString().startsWith('item-')) {
-      const activeItemId = parseInt(activeId.toString().replace('item-', ''));
-      const overItemId = parseInt(overId.toString().replace('item-', ''));
-      
+    else if (
+      activeId.toString().startsWith("item-") &&
+      overId.toString().startsWith("item-")
+    ) {
+      const activeItemId = parseInt(activeId.toString().replace("item-", ""));
+      const overItemId = parseInt(overId.toString().replace("item-", ""));
+
       // Find which menu contains these items
-      const menuWithItems = navbar.menus.find(menu => 
-        menu.children?.some(item => item.id === activeItemId || item.id === overItemId)
+      const menuWithItems = navbar.menus.find((menu) =>
+        menu.children?.some(
+          (item) => item.id === activeItemId || item.id === overItemId
+        )
       );
-      
+
       if (menuWithItems && menuWithItems.children) {
-        const activeIndex = menuWithItems.children.findIndex(item => item.id === activeItemId);
-        const overIndex = menuWithItems.children.findIndex(item => item.id === overItemId);
+        const activeIndex = menuWithItems.children.findIndex(
+          (item) => item.id === activeItemId
+        );
+        const overIndex = menuWithItems.children.findIndex(
+          (item) => item.id === overItemId
+        );
 
         if (activeIndex !== overIndex) {
-          const newItems = arrayMove(menuWithItems.children, activeIndex, overIndex);
+          const newItems = arrayMove(
+            menuWithItems.children,
+            activeIndex,
+            overIndex
+          );
           // Update order numbers
           const updatedItems = newItems.map((item, index) => ({
             ...item,
-            order: index + 1
+            order: index + 1,
           }));
-          
-          const updatedMenus = navbar.menus.map(menu => 
-            menu.id === menuWithItems.id 
+
+          const updatedMenus = navbar.menus.map((menu) =>
+            menu.id === menuWithItems.id
               ? { ...menu, children: updatedItems }
               : menu
           );
-          
+
           setNavbar({ ...navbar, menus: updatedMenus });
-          
+
           // Save the new order
           try {
             const updates = updatedItems.map((item, index) => ({
               id: item.id,
-              order: index + 1
+              order: index + 1,
             }));
-            await navbarService.reorderNavbarMenuItems(menuWithItems.id, [{ updates }]);
+            await navbarService.reorderNavbarMenuItems(menuWithItems.id, [
+              { updates },
+            ]);
             toast.success("Menu item order updated successfully");
+
+            // Trigger ISR cache revalidation
+            await handleNavbarUpdate();
           } catch (error) {
             console.error("Error reordering menu items:", error);
             toast.error("Failed to update menu item order");
@@ -907,12 +1057,25 @@ export function NavbarManagement() {
             onDragEnd={handleDragEnd}
           >
             <SortableContext
-              items={navbar.menus.map(menu => `menu-${menu.id}`)}
+              items={navbar.menus.map((menu) => `menu-${menu.id}`)}
               strategy={verticalListSortingStrategy}
             >
               <div className="space-y-4">
                 {navbar.menus.map((menu: NavbarMenuData) => (
-                  <SortableMenu key={menu.id} menu={menu} onEdit={setEditingMenu} onDelete={handleDeleteMenu} onToggleActive={toggleMenuActive} onAddItem={(menuId) => { setSelectedMenuId(menuId); setIsMenuItemDialogOpen(true); }} onEditItem={setEditingMenuItem} onDeleteItem={handleDeleteMenuItem} onToggleItemActive={toggleMenuItemActive} />
+                  <SortableMenu
+                    key={menu.id}
+                    menu={menu}
+                    onEdit={setEditingMenu}
+                    onDelete={handleDeleteMenu}
+                    onToggleActive={toggleMenuActive}
+                    onAddItem={(menuId) => {
+                      setSelectedMenuId(menuId);
+                      setIsMenuItemDialogOpen(true);
+                    }}
+                    onEditItem={setEditingMenuItem}
+                    onDeleteItem={handleDeleteMenuItem}
+                    onToggleItemActive={toggleMenuItemActive}
+                  />
                 ))}
               </div>
             </SortableContext>
@@ -949,9 +1112,7 @@ export function NavbarManagement() {
           <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
               <DialogTitle>Edit Menu</DialogTitle>
-              <DialogDescription>
-                Update the menu details.
-              </DialogDescription>
+              <DialogDescription>Update the menu details.</DialogDescription>
             </DialogHeader>
             <MenuForm
               menu={editingMenu}
@@ -964,7 +1125,10 @@ export function NavbarManagement() {
       )}
 
       {/* Add Menu Item Dialog */}
-      <Dialog open={isMenuItemDialogOpen} onOpenChange={setIsMenuItemDialogOpen}>
+      <Dialog
+        open={isMenuItemDialogOpen}
+        onOpenChange={setIsMenuItemDialogOpen}
+      >
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>Add Menu Item</DialogTitle>
@@ -973,7 +1137,9 @@ export function NavbarManagement() {
             </DialogDescription>
           </DialogHeader>
           <MenuItemForm
-            onSubmit={(data) => selectedMenuId && handleAddMenuItem(selectedMenuId, data)}
+            onSubmit={(data) =>
+              selectedMenuId && handleAddMenuItem(selectedMenuId, data)
+            }
             onCancel={() => {
               setIsMenuItemDialogOpen(false);
               setSelectedMenuId(null);
@@ -985,7 +1151,10 @@ export function NavbarManagement() {
 
       {/* Edit Menu Item Dialog */}
       {editingMenuItem && (
-        <Dialog open={!!editingMenuItem} onOpenChange={() => setEditingMenuItem(null)}>
+        <Dialog
+          open={!!editingMenuItem}
+          onOpenChange={() => setEditingMenuItem(null)}
+        >
           <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
               <DialogTitle>Edit Menu Item</DialogTitle>
@@ -996,7 +1165,11 @@ export function NavbarManagement() {
             <MenuItemForm
               menuItem={editingMenuItem}
               onSubmit={(data) => {
-                const menu = navbar.menus.find((m: NavbarMenuData) => m.children?.some((item: NavbarMenuItemData) => item.id === editingMenuItem.id));
+                const menu = navbar.menus.find((m: NavbarMenuData) =>
+                  m.children?.some(
+                    (item: NavbarMenuItemData) => item.id === editingMenuItem.id
+                  )
+                );
                 if (menu) {
                   handleUpdateMenuItem(menu.id, editingMenuItem.id, data);
                 }
@@ -1072,11 +1245,7 @@ function SortableMenu({
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => onEdit(menu)}
-              >
+              <Button variant="ghost" size="sm" onClick={() => onEdit(menu)}>
                 <Edit className="h-4 w-4" />
               </Button>
               <Button
@@ -1145,7 +1314,7 @@ function SortableMenuItems({
 }) {
   return (
     <SortableContext
-      items={items.map(item => `item-${item.id}`)}
+      items={items.map((item) => `item-${item.id}`)}
       strategy={verticalListSortingStrategy}
     >
       <div className="space-y-1">
@@ -1216,11 +1385,7 @@ function SortableMenuItem({
         </div>
       </div>
       <div className="flex items-center gap-1">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => onEdit(item)}
-        >
+        <Button variant="ghost" size="sm" onClick={() => onEdit(item)}>
           <Edit className="h-3 w-3" />
         </Button>
         <Button

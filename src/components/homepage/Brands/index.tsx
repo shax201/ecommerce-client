@@ -1,8 +1,8 @@
 "use client";
 
+import React from "react";
 import Image from "next/image";
-import React, { useEffect, useState } from "react";
-import { getActiveClientLogos, ContentResponse } from "@/actions/content";
+import { useBrandsISR } from "@/hooks/use-brands-isr";
 
 // Fallback data in case API fails
 const fallbackBrandsData: { id: string; srcUrl: string; altText: string }[] = [
@@ -41,40 +41,25 @@ interface ClientLogo {
   order: number;
 }
 
-const Brands = () => {
-  const [brands, setBrands] = useState<ClientLogo[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+interface BrandsProps {
+  clientLogos?: any[];
+}
 
-  useEffect(() => {
-    const fetchBrands = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        
-        const response: ContentResponse = await getActiveClientLogos();
-        
-        if (response.success && response.data && Array.isArray(response.data) && response.data.length > 0) {
-          // Sort by order field if available
-          const sortedBrands = response.data.sort((a: ClientLogo, b: ClientLogo) => 
-            (a.order || 0) - (b.order || 0)
-          );
-          setBrands(sortedBrands);
-        } else if (response.success && response.data && Array.isArray(response.data) && response.data.length === 0) {
-          // API succeeded but returned empty array - no brands in database
-          setBrands([]);
-        } else {
-        
-        }
-      } catch (err) {
+const Brands = ({ clientLogos }: BrandsProps) => {
+  // Use the custom ISR hook for better data management
+  const { brands, loading, error, dataSource, performanceMetrics } =
+    useBrandsISR({ clientLogos });
 
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchBrands();
-  }, []);
+  // Debug logging (only in development)
+  if (process.env.NODE_ENV === "development") {
+    console.log("🔍 Brands ISR Debug:", {
+      loading,
+      error,
+      brandsCount: brands.length,
+      dataSource,
+      performanceMetrics,
+    });
+  }
 
   // Don't render anything if still loading
   if (loading) {
@@ -102,12 +87,18 @@ const Brands = () => {
         ))}
       </div>
       {error && (
-        <div className="text-center text-gray-400 text-sm py-2">
-          {error}
-        </div>
+        <div className="text-center text-gray-400 text-sm py-2">{error}</div>
       )}
     </div>
   );
 };
 
-export default Brands;
+// Memoize the component to prevent unnecessary re-renders
+export default React.memo(Brands, (prevProps, nextProps) => {
+  // Only re-render if the actual data has changed
+  const clientLogosChanged =
+    JSON.stringify(prevProps.clientLogos) !==
+    JSON.stringify(nextProps.clientLogos);
+
+  return !clientLogosChanged;
+});

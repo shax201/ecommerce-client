@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { cn } from "@/lib/utils";
 import { integralCF } from "@/styles/fonts";
 import Image from "next/image";
@@ -10,7 +11,7 @@ import LinksSection from "./LinksSection";
 import NewsLetterSection from "./NewsLetterSection";
 import SocialMediaSection from "./SocialMediaSection";
 import FooterSkeleton from "./FooterSkeleton";
-import { useFooterData } from "./useFooterData";
+import { useFooterISR } from "@/hooks/use-footer-isr";
 
 const paymentBadgesData: PaymentBadge[] = [
   {
@@ -35,20 +36,48 @@ const paymentBadgesData: PaymentBadge[] = [
   },
 ];
 
-const Footer = () => {
-  const { footerData, isLoading, error } = useFooterData();
+interface FooterProps {
+  footerData?: any;
+  clientLogos?: any[];
+}
+
+const Footer = ({ footerData: serverFooterData, clientLogos }: FooterProps) => {
+  // Use the custom ISR hook for better organization
+  const {
+    footerData,
+    clientLogos: finalClientLogos,
+    isLoading,
+    hasError,
+    dataSource,
+  } = useFooterISR({ footerData: serverFooterData, clientLogos });
+
+  // Debug logging (only in development)
+  if (process.env.NODE_ENV === "development") {
+    console.log("🔍 Footer ISR Debug:", {
+      isLoading,
+      hasError,
+      dataSource,
+      hasFooterData: !!footerData,
+      clientLogosCount: finalClientLogos?.length || 0,
+      performanceMetrics: {
+        hasServerData:
+          dataSource.footerFromServer || dataSource.clientLogosFromServer,
+        dataCompleteness: {
+          hasFooterData: !!footerData,
+          hasClientLogos: (finalClientLogos?.length ?? 0) > 0,
+        },
+      },
+    });
+  }
 
   // Show loading skeleton while data is being fetched
   if (isLoading) {
     return <FooterSkeleton />;
   }
 
-
-  console.log('footerData', footerData)
-
   // Show error state or fallback to static content
-  if (error || !footerData) {
-    console.error('Footer data error:', error);
+  if (hasError || !footerData) {
+    console.error("Footer data error:", hasError);
     // Fallback to static content
     return (
       <footer className="mt-10">
@@ -71,8 +100,8 @@ const Footer = () => {
                   shopper
                 </h1>
                 <p className="text-black/60 text-sm mb-9">
-                  We have clothes that suits your style and which you're proud to
-                  wear. From women to men.
+                  We have clothes that suits your style and which you're proud
+                  to wear. From women to men.
                 </p>
               </div>
             </nav>
@@ -137,16 +166,17 @@ const Footer = () => {
                   shopper
                 </h1>
               )}
-              
+
               {/* Dynamic Description */}
               <p className="text-black/60 text-sm mb-9">
-                {footerData.description || "We have clothes that suits your style and which you're proud to wear. From women to men."}
+                {footerData.description ||
+                  "We have clothes that suits your style and which you're proud to wear. From women to men."}
               </p>
-              
+
               {/* Dynamic Social Media */}
               <SocialMediaSection contactInfo={footerData.contactInfo} />
             </div>
-            
+
             {/* Dynamic Links */}
             <div className="hidden lg:grid col-span-9 lg:grid-cols-4 lg:pl-10">
               <LinksSection sections={footerData.sections} />
@@ -180,7 +210,7 @@ const Footer = () => {
                 </>
               )}
             </p>
-            
+
             {/* Payment Badges */}
             <div className="flex items-center">
               {paymentBadgesData.map((badge, _, arr) => (
@@ -210,4 +240,15 @@ const Footer = () => {
   );
 };
 
-export default Footer;
+// Memoize the component to prevent unnecessary re-renders
+export default React.memo(Footer, (prevProps, nextProps) => {
+  // Only re-render if the actual data has changed
+  const footerChanged =
+    JSON.stringify(prevProps.footerData) !==
+    JSON.stringify(nextProps.footerData);
+  const clientLogosChanged =
+    JSON.stringify(prevProps.clientLogos) !==
+    JSON.stringify(nextProps.clientLogos);
+
+  return !footerChanged && !clientLogosChanged;
+});

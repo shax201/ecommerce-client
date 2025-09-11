@@ -25,40 +25,61 @@ interface HeroSection {
   order: number;
 }
 
-const HeroSlider = () => {
+interface HeroSliderProps {
+  heroSections?: HeroSection[];
+}
+
+const HeroSlider = ({ heroSections: serverHeroSections }: HeroSliderProps) => {
   const [heroSections, setHeroSections] = useState<HeroSection[]>([]);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Use server-side data if available, otherwise fetch client-side
   useEffect(() => {
-    const fetchHeroSections = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        
-        const response: ContentResponse = await getActiveHeroSections();
-        
-        if (response.success && response.data && Array.isArray(response.data) && response.data.length > 0) {
-          // Sort by order field if available
-          const sortedSections = response.data.sort((a: HeroSection, b: HeroSection) => 
-            (a.order || 0) - (b.order || 0)
-          );
-          setHeroSections(sortedSections);
-        } else {
-          setHeroSections([]);
-        }
-      } catch (err) {
-        console.error("Error fetching hero sections:", err);
-        setError("Failed to load hero sections");
-        setHeroSections([]);
-      } finally {
-        setLoading(false);
-      }
-    };
+    if (serverHeroSections && serverHeroSections.length > 0) {
+      // Use server-side data
+      const sortedSections = serverHeroSections.sort(
+        (a: HeroSection, b: HeroSection) => (a.order || 0) - (b.order || 0)
+      );
+      setHeroSections(sortedSections);
+      setLoading(false);
+    } else {
+      // Fallback to client-side fetching if no server data
+      const fetchHeroSections = async () => {
+        try {
+          setLoading(true);
+          setError(null);
 
-    fetchHeroSections();
-  }, []);
+          const response: ContentResponse = await getActiveHeroSections();
+
+          if (
+            response.success &&
+            response.data &&
+            Array.isArray(response.data) &&
+            response.data.length > 0
+          ) {
+            // Sort by order field if available
+            const sortedSections = response.data.sort(
+              (a: HeroSection, b: HeroSection) =>
+                (a.order || 0) - (b.order || 0)
+            );
+            setHeroSections(sortedSections);
+          } else {
+            setHeroSections([]);
+          }
+        } catch (err) {
+          console.error("Error fetching hero sections:", err);
+          setError("Failed to load hero sections");
+          setHeroSections([]);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      fetchHeroSections();
+    }
+  }, [serverHeroSections]);
 
   // Auto-play functionality
   useEffect(() => {
@@ -114,7 +135,7 @@ const HeroSlider = () => {
           >
             {currentHero.title}
           </motion.h2>
-          
+
           {currentHero.subtitle && (
             <motion.h3
               key={`subtitle-${currentSlide}`}
@@ -134,7 +155,8 @@ const HeroSlider = () => {
             transition={{ delay: 0.3, duration: 0.6 }}
             className="text-black/60 text-sm lg:text-base mb-6 lg:mb-8 max-w-[545px]"
           >
-            {currentHero.description || "Browse through our diverse range of meticulously crafted garments, designed to bring out your individuality and cater to your sense of style."}
+            {currentHero.description ||
+              "Browse through our diverse range of meticulously crafted garments, designed to bring out your individuality and cater to your sense of style."}
           </motion.p>
 
           <motion.div
@@ -152,14 +174,15 @@ const HeroSlider = () => {
                 {currentHero.primaryButtonText}
               </Link>
             )}
-            {currentHero.secondaryButtonText && currentHero.secondaryButtonLink && (
-              <Link
-                href={currentHero.secondaryButtonLink}
-                className="w-full sm:w-auto text-center border-2 border-black hover:bg-black hover:text-white transition-all text-black px-14 py-4 rounded-full"
-              >
-                {currentHero.secondaryButtonText}
-              </Link>
-            )}
+            {currentHero.secondaryButtonText &&
+              currentHero.secondaryButtonLink && (
+                <Link
+                  href={currentHero.secondaryButtonLink}
+                  className="w-full sm:w-auto text-center border-2 border-black hover:bg-black hover:text-white transition-all text-black px-14 py-4 rounded-full"
+                >
+                  {currentHero.secondaryButtonText}
+                </Link>
+              )}
           </motion.div>
 
           <motion.div
@@ -211,9 +234,9 @@ const HeroSlider = () => {
           transition={{ delay: 0.6, duration: 0.8 }}
           className="relative md:px-4 min-h-[448px] md:min-h-[428px] bg-cover bg-top xl:bg-[center_top_-1.6rem] bg-no-repeat"
           style={{
-            backgroundImage: currentHero.backgroundImage 
-              ? `url('${currentHero.backgroundImage}')` 
-              : "url('/images/header-res-homepage.png')"
+            backgroundImage: currentHero.backgroundImage
+              ? `url('${currentHero.backgroundImage}')`
+              : "url('/images/header-res-homepage.png')",
           }}
         >
           <Image
@@ -244,8 +267,8 @@ const HeroSlider = () => {
               onClick={() => goToSlide(index)}
               className={cn(
                 "w-3 h-3 rounded-full transition-all duration-300",
-                index === currentSlide 
-                  ? "bg-black scale-125" 
+                index === currentSlide
+                  ? "bg-black scale-125"
                   : "bg-black/30 hover:bg-black/50"
               )}
               aria-label={`Go to slide ${index + 1}`}

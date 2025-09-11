@@ -14,10 +14,35 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Save, Plus, Trash2, Link, Mail, Phone, MapPin, Loader2, RefreshCw, AlertCircle } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Save,
+  Plus,
+  Trash2,
+  Link,
+  Mail,
+  Phone,
+  MapPin,
+  Loader2,
+  RefreshCw,
+  AlertCircle,
+} from "lucide-react";
 import { toast } from "sonner";
-import { FooterService, type FooterFormData, type ContactInfoFormData, type FooterSectionFormData, type FooterLinkFormData, type ContentResponse } from "@/lib/services/content-service";
+import {
+  FooterService,
+  type FooterFormData,
+  type ContactInfoFormData,
+  type FooterSectionFormData,
+  type FooterLinkFormData,
+  type ContentResponse,
+} from "@/lib/services/content-service";
+import { useFooterManagementISR } from "@/hooks/use-footer-management-isr";
+import { handleFooterUpdate } from "@/actions/revalidate";
 
 // Types for the component
 interface FooterLink {
@@ -63,11 +88,26 @@ interface FooterData {
   updatedAt?: string;
 }
 
-export function FooterManagement() {
+interface FooterManagementProps {
+  footerData?: any;
+}
+
+export function FooterManagement({
+  footerData: initialFooterData,
+}: FooterManagementProps) {
+  // Use the custom ISR hook for better data management
+  const {
+    footer: isrFooter,
+    loading: isLoading,
+    error: isrError,
+    dataSource,
+    performanceMetrics,
+    refresh,
+  } = useFooterManagementISR({ footerData: initialFooterData });
+
   const [footerData, setFooterData] = useState<FooterData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
-  
+
   // Modal states
   const [sectionModal, setSectionModal] = useState<{
     isOpen: boolean;
@@ -78,7 +118,7 @@ export function FooterManagement() {
     section: null,
     isEditing: false,
   });
-  
+
   const [linkModal, setLinkModal] = useState<{
     isOpen: boolean;
     link: any;
@@ -90,22 +130,22 @@ export function FooterManagement() {
     sectionId: undefined,
     isEditing: false,
   });
-  
+
   const [contactModal, setContactModal] = useState<{
     isOpen: boolean;
   }>({
     isOpen: false,
   });
-  
+
   const [generalModal, setGeneralModal] = useState<{
     isOpen: boolean;
   }>({
     isOpen: false,
   });
-  
+
   const [deleteConfirmModal, setDeleteConfirmModal] = useState<{
     isOpen: boolean;
-    type: 'section' | 'link' | null;
+    type: "section" | "link" | null;
     item: any;
     sectionId?: string;
   }>({
@@ -114,47 +154,92 @@ export function FooterManagement() {
     item: null,
   });
 
-  // Load footer data on component mount
+  // Load footer data on component mount and when ISR data changes
   useEffect(() => {
-    loadFooterData();
-  }, []);
+    if (isrFooter) {
+      // Use ISR data if available
+      const footer = isrFooter;
+      setFooterData({
+        id: footer._id || footer.id,
+        sections:
+          footer.sections?.map((section: any) => ({
+            id: section._id || section.id,
+            title: section.title,
+            links:
+              section.links?.map((link: any) => ({
+                id: link._id || link.id,
+                title: link.title,
+                url: link.url,
+                isExternal: link.isExternal,
+                isActive: link.isActive,
+                order: link.order,
+              })) || [],
+            isActive: section.isActive,
+            order: section.order,
+          })) || [],
+        contactInfo: footer.contactInfo,
+        copyright: footer.copyright,
+        description: footer.description,
+        logoUrl: footer.logoUrl,
+        logoAlt: footer.logoAlt,
+        createdAt: footer.createdAt,
+        updatedAt: footer.updatedAt,
+      });
+    } else {
+      // Fallback to client-side fetching if no ISR data
+      loadFooterData();
+    }
+  }, [isrFooter]);
+
+  // Debug logging (only in development)
+  if (process.env.NODE_ENV === "development") {
+    console.log("🔍 FooterManagement ISR Debug:", {
+      isLoading,
+      isrError,
+      dataSource,
+      performanceMetrics,
+      hasFooterData: !!footerData,
+      sectionsCount: footerData?.sections?.length || 0,
+    });
+  }
 
   const loadFooterData = async () => {
     try {
-      setIsLoading(true);
       const response = await FooterService.get();
       if (response.success && response.data) {
         const footer = response.data;
         setFooterData({
           id: footer._id || footer.id,
-          sections: footer.sections?.map((section: any) => ({
-            id: section._id || section.id,
-            title: section.title,
-            links: section.links?.map((link: any) => ({
-              id: link._id || link.id,
-              title: link.title,
-              url: link.url,
-              isExternal: link.isExternal,
-              isActive: link.isActive,
-              order: link.order
+          sections:
+            footer.sections?.map((section: any) => ({
+              id: section._id || section.id,
+              title: section.title,
+              links:
+                section.links?.map((link: any) => ({
+                  id: link._id || link.id,
+                  title: link.title,
+                  url: link.url,
+                  isExternal: link.isExternal,
+                  isActive: link.isActive,
+                  order: link.order,
+                })) || [],
+              isActive: section.isActive,
+              order: section.order,
+              createdAt: section.createdAt,
+              updatedAt: section.updatedAt,
             })) || [],
-            isActive: section.isActive,
-            order: section.order,
-            createdAt: section.createdAt,
-            updatedAt: section.updatedAt
-          })) || [],
           contactInfo: footer.contactInfo || {
-            email: '',
-            phone: '',
-            address: '',
-            socialMedia: {}
+            email: "",
+            phone: "",
+            address: "",
+            socialMedia: {},
           },
-          copyright: footer.copyright || '',
-          description: footer.description || '',
-          logoUrl: footer.logoUrl || '',
-          logoAlt: footer.logoAlt || '',
+          copyright: footer.copyright || "",
+          description: footer.description || "",
+          logoUrl: footer.logoUrl || "",
+          logoAlt: footer.logoAlt || "",
           createdAt: footer.createdAt,
-          updatedAt: footer.updatedAt
+          updatedAt: footer.updatedAt,
         });
       } else {
         toast.error(response.message || "Failed to load footer data");
@@ -163,22 +248,28 @@ export function FooterManagement() {
       console.error("Error loading footer data:", error);
       toast.error("Failed to load footer data");
     } finally {
-      setIsLoading(false);
+      // Loading state is managed by the ISR hook
     }
   };
 
   const handleSaveSection = async (sectionData: FooterSectionFormData) => {
     try {
       let response: ContentResponse;
-      
+
       if (sectionModal.isEditing) {
         // Update existing section
-        response = await FooterService.updateSection(sectionModal.section.id, sectionData);
+        response = await FooterService.updateSection(
+          sectionModal.section.id,
+          sectionData
+        );
         if (response.success) {
-        toast.success("Footer section updated successfully");
+          toast.success("Footer section updated successfully");
           setSectionModal({ isOpen: false, section: null, isEditing: false });
           await loadFooterData(); // Reload data
-      } else {
+
+          // Trigger ISR cache revalidation
+          await handleFooterUpdate();
+        } else {
           console.error("Footer section update error:", response);
           toast.error(response.message || "Failed to update footer section");
         }
@@ -186,9 +277,12 @@ export function FooterManagement() {
         // Create new section
         response = await FooterService.addSection(sectionData);
         if (response.success) {
-        toast.success("Footer section added successfully");
+          toast.success("Footer section added successfully");
           setSectionModal({ isOpen: false, section: null, isEditing: false });
           await loadFooterData(); // Reload data
+
+          // Trigger ISR cache revalidation
+          await handleFooterUpdate();
         } else {
           console.error("Footer section add error:", response);
           toast.error(response.message || "Failed to add footer section");
@@ -200,27 +294,42 @@ export function FooterManagement() {
     }
   };
 
-  const handleSaveLink = async (linkData: FooterLinkFormData, sectionId?: string) => {
+  const handleSaveLink = async (
+    linkData: FooterLinkFormData,
+    sectionId?: string
+  ) => {
     try {
       let response: ContentResponse;
-      
+
       if (linkModal.isEditing) {
         // Update existing link - use the sectionId from modal state
         if (!linkModal.sectionId) {
           toast.error("Could not find the section for this link");
           return;
         }
-        
+
         if (!linkModal.link?.id) {
           toast.error("Invalid link ID");
           return;
         }
-        
-        response = await FooterService.updateLink(linkModal.sectionId, linkModal.link.id, linkData);
+
+        response = await FooterService.updateLink(
+          linkModal.sectionId,
+          linkModal.link.id,
+          linkData
+        );
         if (response.success) {
-        toast.success("Footer link updated successfully");
-          setLinkModal({ isOpen: false, link: null, sectionId: undefined, isEditing: false });
+          toast.success("Footer link updated successfully");
+          setLinkModal({
+            isOpen: false,
+            link: null,
+            sectionId: undefined,
+            isEditing: false,
+          });
           await loadFooterData(); // Reload data
+
+          // Trigger ISR cache revalidation
+          await handleFooterUpdate();
         } else {
           console.error("Footer link update error:", response);
           toast.error(response.message || "Failed to update footer link");
@@ -232,12 +341,20 @@ export function FooterManagement() {
           toast.error("Please select a section for the new link");
           return;
         }
-        
+
         response = await FooterService.addLink(targetSectionId, linkData);
         if (response.success) {
-        toast.success("Footer link added successfully");
-          setLinkModal({ isOpen: false, link: null, sectionId: undefined, isEditing: false });
+          toast.success("Footer link added successfully");
+          setLinkModal({
+            isOpen: false,
+            link: null,
+            sectionId: undefined,
+            isEditing: false,
+          });
           await loadFooterData(); // Reload data
+
+          // Trigger ISR cache revalidation
+          await handleFooterUpdate();
         } else {
           console.error("Footer link add error:", response);
           toast.error(response.message || "Failed to add footer link");
@@ -252,7 +369,7 @@ export function FooterManagement() {
   const handleDeleteSectionClick = (section: FooterSection) => {
     setDeleteConfirmModal({
       isOpen: true,
-      type: 'section',
+      type: "section",
       item: section,
     });
   };
@@ -260,7 +377,7 @@ export function FooterManagement() {
   const handleDeleteLinkClick = (link: FooterLink, sectionId: string) => {
     setDeleteConfirmModal({
       isOpen: true,
-      type: 'link',
+      type: "link",
       item: link,
       sectionId,
     });
@@ -273,20 +390,32 @@ export function FooterManagement() {
       setIsDeleting(deleteConfirmModal.item.id);
       let response: ContentResponse;
 
-      if (deleteConfirmModal.type === 'section') {
-        response = await FooterService.deleteSection(deleteConfirmModal.item.id);
-      } else if (deleteConfirmModal.type === 'link' && deleteConfirmModal.sectionId) {
-        response = await FooterService.deleteLink(deleteConfirmModal.sectionId, deleteConfirmModal.item.id);
+      if (deleteConfirmModal.type === "section") {
+        response = await FooterService.deleteSection(
+          deleteConfirmModal.item.id
+        );
+      } else if (
+        deleteConfirmModal.type === "link" &&
+        deleteConfirmModal.sectionId
+      ) {
+        response = await FooterService.deleteLink(
+          deleteConfirmModal.sectionId,
+          deleteConfirmModal.item.id
+        );
       } else {
         return;
       }
 
       if (response.success) {
-        toast.success(`${deleteConfirmModal.type === 'section' ? 'Footer section' : 'Footer link'} deleted successfully`);
+        toast.success(
+          `${deleteConfirmModal.type === "section" ? "Footer section" : "Footer link"} deleted successfully`
+        );
         await loadFooterData(); // Reload data
         setDeleteConfirmModal({ isOpen: false, type: null, item: null });
       } else {
-        toast.error(response.message || `Failed to delete ${deleteConfirmModal.type}`);
+        toast.error(
+          response.message || `Failed to delete ${deleteConfirmModal.type}`
+        );
       }
     } catch (error) {
       console.error(`Error deleting ${deleteConfirmModal.type}:`, error);
@@ -304,9 +433,12 @@ export function FooterManagement() {
     try {
       const response = await FooterService.updateContactInfo(contactData);
       if (response.success) {
-      toast.success("Contact information updated successfully");
+        toast.success("Contact information updated successfully");
         setContactModal({ isOpen: false });
         await loadFooterData(); // Reload data
+
+        // Trigger ISR cache revalidation
+        await handleFooterUpdate();
       } else {
         toast.error(response.message || "Failed to update contact information");
       }
@@ -320,9 +452,12 @@ export function FooterManagement() {
     try {
       const response = await FooterService.update(data);
       if (response.success) {
-      toast.success("General information updated successfully");
+        toast.success("General information updated successfully");
         setGeneralModal({ isOpen: false });
         await loadFooterData(); // Reload data
+
+        // Trigger ISR cache revalidation
+        await handleFooterUpdate();
       } else {
         toast.error(response.message || "Failed to update general information");
       }
@@ -396,7 +531,13 @@ export function FooterManagement() {
               </p>
             </div>
             <Button
-              onClick={() => setSectionModal({ isOpen: true, section: null, isEditing: false })}
+              onClick={() =>
+                setSectionModal({
+                  isOpen: true,
+                  section: null,
+                  isEditing: false,
+                })
+              }
             >
               <Plus className="h-4 w-4 mr-2" />
               Add New Section
@@ -421,17 +562,17 @@ export function FooterManagement() {
                         <Switch
                           checked={section.isActive}
                           onCheckedChange={(checked) =>
-                          setFooterData((prev) => {
-                            if (!prev) return prev;
-                            return {
-                              ...prev,
-                              sections: prev.sections.map((s) =>
-                                s.id === section.id
-                                  ? { ...s, isActive: checked }
-                                  : s
-                              ),
-                            };
-                          })
+                            setFooterData((prev) => {
+                              if (!prev) return prev;
+                              return {
+                                ...prev,
+                                sections: prev.sections.map((s) =>
+                                  s.id === section.id
+                                    ? { ...s, isActive: checked }
+                                    : s
+                                ),
+                              };
+                            })
                           }
                         />
                         <span className="text-sm text-muted-foreground">
@@ -443,7 +584,13 @@ export function FooterManagement() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => setSectionModal({ isOpen: true, section, isEditing: true })}
+                        onClick={() =>
+                          setSectionModal({
+                            isOpen: true,
+                            section,
+                            isEditing: true,
+                          })
+                        }
                       >
                         Edit Section
                       </Button>
@@ -456,7 +603,7 @@ export function FooterManagement() {
                         {isDeleting === section.id ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
-                        <Trash2 className="h-4 w-4" />
+                          <Trash2 className="h-4 w-4" />
                         )}
                       </Button>
                     </div>
@@ -485,7 +632,14 @@ export function FooterManagement() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => setLinkModal({ isOpen: true, link, sectionId: section.id, isEditing: true })}
+                            onClick={() =>
+                              setLinkModal({
+                                isOpen: true,
+                                link,
+                                sectionId: section.id,
+                                isEditing: true,
+                              })
+                            }
                           >
                             Edit
                           </Button>
@@ -500,7 +654,7 @@ export function FooterManagement() {
                             {isDeleting === link.id ? (
                               <Loader2 className="h-4 w-4 animate-spin" />
                             ) : (
-                            <Trash2 className="h-4 w-4" />
+                              <Trash2 className="h-4 w-4" />
                             )}
                           </Button>
                         </div>
@@ -509,7 +663,14 @@ export function FooterManagement() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setLinkModal({ isOpen: true, link: null, sectionId: section.id, isEditing: false })}
+                      onClick={() =>
+                        setLinkModal({
+                          isOpen: true,
+                          link: null,
+                          sectionId: section.id,
+                          isEditing: false,
+                        })
+                      }
                       className="w-full"
                     >
                       <Plus className="h-4 w-4 mr-2" />
@@ -520,13 +681,14 @@ export function FooterManagement() {
               </Card>
             ))}
             {footerData.sections.length === 0 && (
-          <Card>
+              <Card>
                 <CardContent className="text-center py-8">
                   <div className="text-muted-foreground">
-                    No footer sections yet. Create your first section to get started.
+                    No footer sections yet. Create your first section to get
+                    started.
                   </div>
-            </CardContent>
-          </Card>
+                </CardContent>
+              </Card>
             )}
           </div>
         </TabsContent>
@@ -539,9 +701,7 @@ export function FooterManagement() {
                 Manage contact details and social media links
               </p>
             </div>
-            <Button
-              onClick={() => setContactModal({ isOpen: true })}
-            >
+            <Button onClick={() => setContactModal({ isOpen: true })}>
               <Mail className="h-4 w-4 mr-2" />
               Edit Contact Info
             </Button>
@@ -574,23 +734,32 @@ export function FooterManagement() {
                   <Label>Social Media</Label>
                   <div className="flex gap-4 text-sm text-muted-foreground">
                     {footerData.contactInfo.socialMedia?.facebook && (
-                      <div>Facebook: {footerData.contactInfo.socialMedia.facebook}</div>
+                      <div>
+                        Facebook: {footerData.contactInfo.socialMedia.facebook}
+                      </div>
                     )}
                     {footerData.contactInfo.socialMedia?.twitter && (
-                      <div>Twitter: {footerData.contactInfo.socialMedia.twitter}</div>
+                      <div>
+                        Twitter: {footerData.contactInfo.socialMedia.twitter}
+                      </div>
                     )}
                     {footerData.contactInfo.socialMedia?.instagram && (
-                      <div>Instagram: {footerData.contactInfo.socialMedia.instagram}</div>
+                      <div>
+                        Instagram:{" "}
+                        {footerData.contactInfo.socialMedia.instagram}
+                      </div>
                     )}
                     {footerData.contactInfo.socialMedia?.github && (
-                      <div>GitHub: {footerData.contactInfo.socialMedia.github}</div>
+                      <div>
+                        GitHub: {footerData.contactInfo.socialMedia.github}
+                      </div>
                     )}
-                    {!footerData.contactInfo.socialMedia?.facebook && 
-                     !footerData.contactInfo.socialMedia?.twitter && 
-                     !footerData.contactInfo.socialMedia?.instagram && 
-                     !footerData.contactInfo.socialMedia?.github && (
-                      <div>No social media links set</div>
-                    )}
+                    {!footerData.contactInfo.socialMedia?.facebook &&
+                      !footerData.contactInfo.socialMedia?.twitter &&
+                      !footerData.contactInfo.socialMedia?.instagram &&
+                      !footerData.contactInfo.socialMedia?.github && (
+                        <div>No social media links set</div>
+                      )}
                   </div>
                 </div>
               </div>
@@ -606,9 +775,7 @@ export function FooterManagement() {
                 Manage footer branding and general settings
               </p>
             </div>
-            <Button
-              onClick={() => setGeneralModal({ isOpen: true })}
-            >
+            <Button onClick={() => setGeneralModal({ isOpen: true })}>
               <Save className="h-4 w-4 mr-2" />
               Edit General Info
             </Button>
@@ -659,46 +826,73 @@ export function FooterManagement() {
       </Tabs>
 
       {/* Footer Section Modal */}
-      <Dialog open={sectionModal.isOpen} onOpenChange={(open) => 
-        setSectionModal({ isOpen: open, section: null, isEditing: false })
-      }>
+      <Dialog
+        open={sectionModal.isOpen}
+        onOpenChange={(open) =>
+          setSectionModal({ isOpen: open, section: null, isEditing: false })
+        }
+      >
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>
-              {sectionModal.isEditing ? 'Edit Footer Section' : 'Add New Footer Section'}
+              {sectionModal.isEditing
+                ? "Edit Footer Section"
+                : "Add New Footer Section"}
             </DialogTitle>
           </DialogHeader>
-            <FooterSectionForm
+          <FooterSectionForm
             section={sectionModal.section}
-              onSave={handleSaveSection}
-            onCancel={() => setSectionModal({ isOpen: false, section: null, isEditing: false })}
+            onSave={handleSaveSection}
+            onCancel={() =>
+              setSectionModal({
+                isOpen: false,
+                section: null,
+                isEditing: false,
+              })
+            }
           />
         </DialogContent>
       </Dialog>
 
       {/* Footer Link Modal */}
-      <Dialog open={linkModal.isOpen} onOpenChange={(open) => 
-        setLinkModal({ isOpen: open, link: null, sectionId: undefined, isEditing: false })
-      }>
+      <Dialog
+        open={linkModal.isOpen}
+        onOpenChange={(open) =>
+          setLinkModal({
+            isOpen: open,
+            link: null,
+            sectionId: undefined,
+            isEditing: false,
+          })
+        }
+      >
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>
-              {linkModal.isEditing ? 'Edit Footer Link' : 'Add New Footer Link'}
+              {linkModal.isEditing ? "Edit Footer Link" : "Add New Footer Link"}
             </DialogTitle>
           </DialogHeader>
-            <FooterLinkForm
+          <FooterLinkForm
             link={linkModal.link}
-              sections={footerData.sections}
+            sections={footerData.sections}
             onSave={handleSaveLink}
-            onCancel={() => setLinkModal({ isOpen: false, link: null, sectionId: undefined, isEditing: false })}
+            onCancel={() =>
+              setLinkModal({
+                isOpen: false,
+                link: null,
+                sectionId: undefined,
+                isEditing: false,
+              })
+            }
           />
         </DialogContent>
       </Dialog>
 
       {/* Contact Info Modal */}
-      <Dialog open={contactModal.isOpen} onOpenChange={(open) => 
-        setContactModal({ isOpen: open })
-      }>
+      <Dialog
+        open={contactModal.isOpen}
+        onOpenChange={(open) => setContactModal({ isOpen: open })}
+      >
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Edit Contact Information</DialogTitle>
@@ -711,9 +905,10 @@ export function FooterManagement() {
       </Dialog>
 
       {/* General Info Modal */}
-      <Dialog open={generalModal.isOpen} onOpenChange={(open) => 
-        setGeneralModal({ isOpen: open })
-      }>
+      <Dialog
+        open={generalModal.isOpen}
+        onOpenChange={(open) => setGeneralModal({ isOpen: open })}
+      >
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Edit General Information</DialogTitle>
@@ -731,7 +926,10 @@ export function FooterManagement() {
       </Dialog>
 
       {/* Delete Confirmation Modal */}
-      <Dialog open={deleteConfirmModal.isOpen} onOpenChange={handleDeleteCancel}>
+      <Dialog
+        open={deleteConfirmModal.isOpen}
+        onOpenChange={handleDeleteCancel}
+      >
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -742,24 +940,26 @@ export function FooterManagement() {
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
               Are you sure you want to delete{" "}
-              <strong>
-                "{deleteConfirmModal.item?.title}"
-              </strong>{" "}
-              {deleteConfirmModal.type === 'section' ? 'section' : 'link'}? 
-              This action cannot be undone.
+              <strong>"{deleteConfirmModal.item?.title}"</strong>{" "}
+              {deleteConfirmModal.type === "section" ? "section" : "link"}? This
+              action cannot be undone.
             </p>
             {deleteConfirmModal.item && (
               <div className="p-3 bg-muted rounded-lg">
                 <div className="text-sm">
                   <div className="font-medium">
-                    {deleteConfirmModal.type === 'section' ? 'Section' : 'Link'} Details:
+                    {deleteConfirmModal.type === "section" ? "Section" : "Link"}{" "}
+                    Details:
                   </div>
                   <div className="text-muted-foreground mt-1">
                     <div>Title: {deleteConfirmModal.item.title}</div>
-                    {deleteConfirmModal.type === 'link' && (
+                    {deleteConfirmModal.type === "link" && (
                       <div>URL: {deleteConfirmModal.item.url}</div>
                     )}
-                    <div>Status: {deleteConfirmModal.item.isActive ? "Active" : "Inactive"}</div>
+                    <div>
+                      Status:{" "}
+                      {deleteConfirmModal.item.isActive ? "Active" : "Inactive"}
+                    </div>
                     <div>Order: {deleteConfirmModal.item.order}</div>
                   </div>
                 </div>
@@ -828,36 +1028,36 @@ function FooterSectionForm({
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
-    
+
     if (!formData.title.trim()) {
       newErrors.title = "Section title is required";
     } else if (formData.title.length > 100) {
       newErrors.title = "Section title must be less than 100 characters";
     }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       return;
     }
-    
+
     try {
       setIsSaving(true);
-      
+
       // Clean form data - convert empty strings to undefined for optional fields
       const cleanedFormData: FooterSectionFormData = {
         title: formData.title.trim(),
         isActive: formData.isActive,
         order: formData.order,
       };
-      
+
       await onSave(cleanedFormData);
-    if (!section) {
+      if (!section) {
         setFormData({ title: "", isActive: true, order: 1 });
       }
     } catch (error) {
@@ -878,15 +1078,13 @@ function FooterSectionForm({
             const value = e.target.value;
             setFormData((prev) => ({ ...prev, title: value }));
             if (errors.title) {
-              setErrors(prev => ({ ...prev, title: "" }));
+              setErrors((prev) => ({ ...prev, title: "" }));
             }
           }}
           placeholder="Enter section title"
           className={errors.title ? "border-red-500" : ""}
         />
-        {errors.title && (
-          <p className="text-sm text-red-500">{errors.title}</p>
-        )}
+        {errors.title && <p className="text-sm text-red-500">{errors.title}</p>}
       </div>
       <div className="flex items-center space-x-2">
         <Switch
@@ -899,15 +1097,23 @@ function FooterSectionForm({
         <Label htmlFor="isActive">Active</Label>
       </div>
       <div className="flex gap-2">
-        <Button type="submit" disabled={isSaving || Object.keys(errors).length > 0}>
+        <Button
+          type="submit"
+          disabled={isSaving || Object.keys(errors).length > 0}
+        >
           {isSaving ? (
             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
           ) : (
-          <Save className="h-4 w-4 mr-2" />
+            <Save className="h-4 w-4 mr-2" />
           )}
           {isSaving ? "Saving..." : section ? "Update Section" : "Add Section"}
         </Button>
-        <Button type="button" variant="outline" onClick={onCancel} disabled={isSaving}>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onCancel}
+          disabled={isSaving}
+        >
           Cancel
         </Button>
       </div>
@@ -933,7 +1139,9 @@ function FooterLinkForm({
     isActive: link?.isActive ?? true,
     order: link?.order || 1,
   });
-  const [selectedSectionId, setSelectedSectionId] = useState<string>(sections[0]?.id || "");
+  const [selectedSectionId, setSelectedSectionId] = useState<string>(
+    sections[0]?.id || ""
+  );
   const [isSaving, setIsSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -952,23 +1160,23 @@ function FooterLinkForm({
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
-    
+
     if (!formData.title.trim()) {
       newErrors.title = "Link title is required";
     } else if (formData.title.length > 100) {
       newErrors.title = "Link title must be less than 100 characters";
     }
-    
+
     if (!formData.url.trim()) {
       newErrors.url = "URL is required";
     } else if (!isValidUrl(formData.url)) {
       newErrors.url = "Please enter a valid URL";
     }
-    
+
     if (!selectedSectionId) {
       newErrors.section = "Please select a section";
     }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -977,17 +1185,18 @@ function FooterLinkForm({
     try {
       // Clean the URL first
       let cleanUrl = url.trim();
-      
+
       // Fix URLs with multiple slashes after protocol (e.g., https:///shop -> https://shop)
-      if (cleanUrl.includes(':///')) {
-        cleanUrl = cleanUrl.replace(/:\/\/\//g, '://');
+      if (cleanUrl.includes(":///")) {
+        cleanUrl = cleanUrl.replace(/:\/\/\//g, "://");
       }
-      
+
       // Ensure URL has a protocol
-      const urlWithProtocol = cleanUrl.startsWith('http://') || cleanUrl.startsWith('https://') 
-        ? cleanUrl 
-        : `https://${cleanUrl}`;
-      
+      const urlWithProtocol =
+        cleanUrl.startsWith("http://") || cleanUrl.startsWith("https://")
+          ? cleanUrl
+          : `https://${cleanUrl}`;
+
       new URL(urlWithProtocol);
       return true;
     } catch {
@@ -997,35 +1206,42 @@ function FooterLinkForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       return;
     }
-    
+
     try {
       setIsSaving(true);
-      
+
       // Clean form data - convert empty strings to undefined for optional fields
       let cleanUrl = formData.url.trim();
-      
+
       // Fix URLs with multiple slashes after protocol (e.g., https:///shop -> https://shop)
-      if (cleanUrl.includes(':///')) {
-        cleanUrl = cleanUrl.replace(/:\/\/\//g, '://');
+      if (cleanUrl.includes(":///")) {
+        cleanUrl = cleanUrl.replace(/:\/\/\//g, "://");
       }
-      
+
       const cleanedFormData: FooterLinkFormData = {
         title: formData.title.trim(),
-        url: cleanUrl.startsWith('http://') || cleanUrl.startsWith('https://') 
-          ? cleanUrl 
-          : `https://${cleanUrl}`,
+        url:
+          cleanUrl.startsWith("http://") || cleanUrl.startsWith("https://")
+            ? cleanUrl
+            : `https://${cleanUrl}`,
         isExternal: formData.isExternal,
         isActive: formData.isActive,
         order: formData.order,
       };
-      
+
       await onSave(cleanedFormData, selectedSectionId);
-    if (!link) {
-        setFormData({ title: "", url: "", isExternal: false, isActive: true, order: 1 });
+      if (!link) {
+        setFormData({
+          title: "",
+          url: "",
+          isExternal: false,
+          isActive: true,
+          order: 1,
+        });
         setSelectedSectionId(sections[0]?.id || "");
       }
     } catch (error) {
@@ -1038,7 +1254,7 @@ function FooterLinkForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {!link && (
-      <div className="space-y-2">
+        <div className="space-y-2">
           <Label htmlFor="section">Section *</Label>
           <select
             id="section"
@@ -1046,7 +1262,7 @@ function FooterLinkForm({
             onChange={(e) => {
               setSelectedSectionId(e.target.value);
               if (errors.section) {
-                setErrors(prev => ({ ...prev, section: "" }));
+                setErrors((prev) => ({ ...prev, section: "" }));
               }
             }}
             className={`w-full px-3 py-2 border rounded-md ${errors.section ? "border-red-500" : "border-gray-300"}`}
@@ -1072,15 +1288,13 @@ function FooterLinkForm({
             const value = e.target.value;
             setFormData((prev) => ({ ...prev, title: value }));
             if (errors.title) {
-              setErrors(prev => ({ ...prev, title: "" }));
+              setErrors((prev) => ({ ...prev, title: "" }));
             }
           }}
           placeholder="Enter link title"
           className={errors.title ? "border-red-500" : ""}
         />
-        {errors.title && (
-          <p className="text-sm text-red-500">{errors.title}</p>
-        )}
+        {errors.title && <p className="text-sm text-red-500">{errors.title}</p>}
       </div>
       <div className="space-y-2">
         <Label htmlFor="url">URL *</Label>
@@ -1091,15 +1305,13 @@ function FooterLinkForm({
             const value = e.target.value;
             setFormData((prev) => ({ ...prev, url: value }));
             if (errors.url) {
-              setErrors(prev => ({ ...prev, url: "" }));
+              setErrors((prev) => ({ ...prev, url: "" }));
             }
           }}
           placeholder="Enter URL"
           className={errors.url ? "border-red-500" : ""}
         />
-        {errors.url && (
-          <p className="text-sm text-red-500">{errors.url}</p>
-        )}
+        {errors.url && <p className="text-sm text-red-500">{errors.url}</p>}
       </div>
       <div className="flex items-center space-x-2">
         <Switch
@@ -1122,15 +1334,23 @@ function FooterLinkForm({
         <Label htmlFor="isActive">Active</Label>
       </div>
       <div className="flex gap-2">
-        <Button type="submit" disabled={isSaving || Object.keys(errors).length > 0}>
+        <Button
+          type="submit"
+          disabled={isSaving || Object.keys(errors).length > 0}
+        >
           {isSaving ? (
             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
           ) : (
-          <Save className="h-4 w-4 mr-2" />
+            <Save className="h-4 w-4 mr-2" />
           )}
           {isSaving ? "Saving..." : link ? "Update Link" : "Add Link"}
         </Button>
-        <Button type="button" variant="outline" onClick={onCancel} disabled={isSaving}>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onCancel}
+          disabled={isSaving}
+        >
           Cancel
         </Button>
       </div>
@@ -1167,11 +1387,11 @@ function ContactInfoForm({
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
-    
+
     if (formData.email && !isValidEmail(formData.email)) {
       newErrors.email = "Please enter a valid email address";
     }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -1183,26 +1403,26 @@ function ContactInfoForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       return;
     }
-    
+
     try {
       setIsSaving(true);
-      
+
       // Clean form data - convert empty strings to undefined for optional fields
       const formatUrl = (url: string | undefined) => {
         if (!url?.trim()) return undefined;
         let trimmed = url.trim();
-        
+
         // Fix URLs with multiple slashes after protocol (e.g., https:///shop -> https://shop)
-        if (trimmed.includes(':///')) {
-          trimmed = trimmed.replace(/:\/\/\//g, '://');
+        if (trimmed.includes(":///")) {
+          trimmed = trimmed.replace(/:\/\/\//g, "://");
         }
-        
-        return trimmed.startsWith('http://') || trimmed.startsWith('https://') 
-          ? trimmed 
+
+        return trimmed.startsWith("http://") || trimmed.startsWith("https://")
+          ? trimmed
           : `https://${trimmed}`;
       };
 
@@ -1217,7 +1437,7 @@ function ContactInfoForm({
           github: formatUrl(formData.socialMedia?.github),
         },
       };
-      
+
       await onSave(cleanedFormData);
     } catch (error) {
       console.error("Error saving contact info:", error);
@@ -1239,7 +1459,7 @@ function ContactInfoForm({
               const value = e.target.value;
               setFormData((prev) => ({ ...prev, email: value }));
               if (errors.email) {
-                setErrors(prev => ({ ...prev, email: "" }));
+                setErrors((prev) => ({ ...prev, email: "" }));
               }
             }}
             placeholder="support@example.com"
@@ -1340,11 +1560,14 @@ function ContactInfoForm({
           </div>
         </div>
       </div>
-      <Button type="submit" disabled={isSaving || Object.keys(errors).length > 0}>
+      <Button
+        type="submit"
+        disabled={isSaving || Object.keys(errors).length > 0}
+      >
         {isSaving ? (
           <Loader2 className="h-4 w-4 mr-2 animate-spin" />
         ) : (
-        <Save className="h-4 w-4 mr-2" />
+          <Save className="h-4 w-4 mr-2" />
         )}
         {isSaving ? "Saving..." : "Update Contact Info"}
       </Button>
@@ -1386,11 +1609,11 @@ function GeneralInfoForm({
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
-    
+
     if (formData.logoUrl && !isValidUrl(formData.logoUrl)) {
       newErrors.logoUrl = "Please enter a valid URL";
     }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -1399,17 +1622,18 @@ function GeneralInfoForm({
     try {
       // Clean the URL first
       let cleanUrl = url.trim();
-      
+
       // Fix URLs with multiple slashes after protocol (e.g., https:///shop -> https://shop)
-      if (cleanUrl.includes(':///')) {
-        cleanUrl = cleanUrl.replace(/:\/\/\//g, '://');
+      if (cleanUrl.includes(":///")) {
+        cleanUrl = cleanUrl.replace(/:\/\/\//g, "://");
       }
-      
+
       // Ensure URL has a protocol
-      const urlWithProtocol = cleanUrl.startsWith('http://') || cleanUrl.startsWith('https://') 
-        ? cleanUrl 
-        : `https://${cleanUrl}`;
-      
+      const urlWithProtocol =
+        cleanUrl.startsWith("http://") || cleanUrl.startsWith("https://")
+          ? cleanUrl
+          : `https://${cleanUrl}`;
+
       new URL(urlWithProtocol);
       return true;
     } catch {
@@ -1419,33 +1643,34 @@ function GeneralInfoForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       return;
     }
-    
+
     try {
       setIsSaving(true);
-      
+
       // Clean form data - convert empty strings to undefined for optional fields
       let cleanLogoUrl = formData.logoUrl?.trim();
-      
+
       // If it starts with multiple slashes, clean it up
-      if (cleanLogoUrl && cleanLogoUrl.startsWith('///')) {
-        cleanLogoUrl = cleanLogoUrl.replace(/^\/+/, '');
+      if (cleanLogoUrl && cleanLogoUrl.startsWith("///")) {
+        cleanLogoUrl = cleanLogoUrl.replace(/^\/+/, "");
       }
-      
+
       const cleanedFormData: FooterFormData = {
         copyright: formData.copyright?.trim() || undefined,
         description: formData.description?.trim() || undefined,
-        logoUrl: cleanLogoUrl 
-          ? (cleanLogoUrl.startsWith('http://') || cleanLogoUrl.startsWith('https://') 
-              ? cleanLogoUrl 
-              : `https://${cleanLogoUrl}`)
+        logoUrl: cleanLogoUrl
+          ? cleanLogoUrl.startsWith("http://") ||
+            cleanLogoUrl.startsWith("https://")
+            ? cleanLogoUrl
+            : `https://${cleanLogoUrl}`
           : undefined,
         logoAlt: formData.logoAlt?.trim() || undefined,
       };
-      
+
       await onSave(cleanedFormData);
     } catch (error) {
       console.error("Error saving general info:", error);
@@ -1488,7 +1713,7 @@ function GeneralInfoForm({
             const value = e.target.value;
             setFormData((prev) => ({ ...prev, logoUrl: value }));
             if (errors.logoUrl) {
-              setErrors(prev => ({ ...prev, logoUrl: "" }));
+              setErrors((prev) => ({ ...prev, logoUrl: "" }));
             }
           }}
           placeholder="/images/logo-footer.png"
@@ -1509,11 +1734,14 @@ function GeneralInfoForm({
           placeholder="Company Footer Logo"
         />
       </div>
-      <Button type="submit" disabled={isSaving || Object.keys(errors).length > 0}>
+      <Button
+        type="submit"
+        disabled={isSaving || Object.keys(errors).length > 0}
+      >
         {isSaving ? (
           <Loader2 className="h-4 w-4 mr-2 animate-spin" />
         ) : (
-        <Save className="h-4 w-4 mr-2" />
+          <Save className="h-4 w-4 mr-2" />
         )}
         {isSaving ? "Saving..." : "Update General Info"}
       </Button>

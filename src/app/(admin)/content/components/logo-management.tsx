@@ -29,28 +29,61 @@ import {
   CreateLogoData,
   UpdateLogoData,
 } from "@/lib/services/logo-service";
+import { useLogoManagementISR } from "@/hooks/use-logo-management-isr";
+import { handleLogoUpdate } from "@/actions/revalidate";
 
-export function LogoManagement() {
+interface LogoManagementProps {
+  logosData?: LogoData[];
+}
+
+export function LogoManagement({ logosData }: LogoManagementProps) {
+  // Use the custom ISR hook for better data management
+  const {
+    logos: isrLogos,
+    loading: isLoading,
+    error: isrError,
+    dataSource,
+    performanceMetrics,
+  } = useLogoManagementISR({ logosData });
+
   const [logos, setLogos] = useState<LogoData[]>([]);
   const [editingLogo, setEditingLogo] = useState<LogoData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Load logos on component mount
+  // Use ISR data when available, fallback to local state
   useEffect(() => {
-    loadLogos();
-  }, []);
+    if (isrLogos.length > 0) {
+      setLogos(isrLogos);
+    } else {
+      // Fallback to service call if no ISR data
+      loadLogosFallback();
+    }
+  }, [isrLogos]);
 
-  const loadLogos = async () => {
+  // Debug logging for ISR status
+  useEffect(() => {
+    console.log("🔍 LogoManagement ISR Status:", {
+      dataSource,
+      performanceMetrics,
+      logosCount: logos.length,
+    });
+  }, [dataSource, performanceMetrics, logos]);
+
+  const loadLogosFallback = async () => {
     try {
-      setIsLoading(true);
       const logosData = await logoService.getLogos();
       setLogos(logosData);
     } catch (error) {
       console.error("Error loading logos:", error);
       toast.error("Failed to load logos");
-    } finally {
-      setIsLoading(false);
+    }
+  };
+
+  const loadLogos = async () => {
+    if (isrLogos.length > 0) {
+      setLogos(isrLogos);
+    } else {
+      await loadLogosFallback();
     }
   };
 
@@ -78,6 +111,9 @@ export function LogoManagement() {
         );
         setEditingLogo(null);
         toast.success("Logo updated successfully");
+
+        // Trigger ISR cache revalidation
+        await handleLogoUpdate(editingLogo.id);
       } else {
         // Create new logo
         const createData: CreateLogoData = {
@@ -92,6 +128,9 @@ export function LogoManagement() {
         const newLogo = await logoService.createLogo(createData);
         setLogos((prev) => [...prev, newLogo]);
         toast.success("Logo added successfully");
+
+        // Trigger ISR cache revalidation
+        await handleLogoUpdate(newLogo.id);
       }
     } catch (error) {
       console.error("Error saving logo:", error);
@@ -114,6 +153,9 @@ export function LogoManagement() {
         await logoService.deleteLogo(id);
         setLogos((prev) => prev.filter((logo) => logo.id !== id));
         toast.success("Logo deleted successfully");
+
+        // Trigger ISR cache revalidation
+        await handleLogoUpdate(id);
       } catch (error) {
         console.error("Error deleting logo:", error);
         toast.error("Failed to delete logo");
@@ -133,6 +175,9 @@ export function LogoManagement() {
       toast.success(
         `Logo ${updatedLogo.isActive ? "activated" : "deactivated"} successfully`
       );
+
+      // Trigger ISR cache revalidation
+      await handleLogoUpdate(id);
     } catch (error) {
       console.error("Error toggling logo status:", error);
       toast.error("Failed to update logo status");
@@ -188,7 +233,9 @@ export function LogoManagement() {
               <CardHeader className="pb-0 px-1 pt-1">
                 <div className="flex items-center justify-between">
                   <div className="min-w-0 flex-1">
-                    <CardTitle className="text-xs truncate font-medium">{logo.name}</CardTitle>
+                    <CardTitle className="text-xs truncate font-medium">
+                      {logo.name}
+                    </CardTitle>
                   </div>
                   <div className="flex gap-0.5 ml-0.5">
                     <Button
@@ -228,7 +275,9 @@ export function LogoManagement() {
                         className="max-h-6 max-w-full object-contain"
                       />
                     ) : (
-                      <div className="text-muted-foreground text-xs">No image</div>
+                      <div className="text-muted-foreground text-xs">
+                        No image
+                      </div>
                     )}
                   </div>
                   <div className="flex items-center justify-between">

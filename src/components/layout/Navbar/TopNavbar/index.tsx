@@ -15,8 +15,19 @@ import CartBtn from "./CartBtn";
 import { MenuItem } from "./MenuItem";
 import { MenuList } from "./MenuList";
 import ResTopNavbar from "./ResTopNavbar";
-import { useDynamicMenus, DynamicMenu, DynamicMenuItem } from "@/hooks/use-dynamic-menus";
-import { useLogo } from "@/hooks/use-logo";
+import {
+  useDynamicMenus,
+  DynamicMenu,
+  DynamicMenuItem,
+} from "@/hooks/use-dynamic-menus";
+import { Logo } from "@/hooks/use-logo";
+import { useNavbarISR } from "@/hooks/use-navbar-isr";
+
+// Props interface
+interface TopNavbarProps {
+  dynamicMenus?: DynamicMenu[];
+  logo?: Logo | null;
+}
 
 // Fallback static data
 const fallbackData: NavMenu = [
@@ -82,7 +93,7 @@ const convertDynamicMenuToNavMenu = (dynamicMenus: DynamicMenu[]): NavMenu => {
     if (menu.items && menu.items.length > 0) {
       // If menu has items, create a MenuList
       const children = menu.items
-        .filter(item => item.isActive)
+        .filter((item) => item.isActive)
         .sort((a, b) => a.order - b.order)
         .map((item: DynamicMenuItem) => ({
           id: item.id,
@@ -93,7 +104,9 @@ const convertDynamicMenuToNavMenu = (dynamicMenus: DynamicMenu[]): NavMenu => {
 
       if (children.length > 0) {
         navMenuItems.push({
-          id: menu._id ? parseInt(menu._id.slice(-4), 16) : Math.random() * 1000,
+          id: menu._id
+            ? parseInt(menu._id.slice(-4), 16)
+            : Math.random() * 1000,
           label: menu.name,
           type: "MenuList",
           children,
@@ -114,28 +127,37 @@ const convertDynamicMenuToNavMenu = (dynamicMenus: DynamicMenu[]): NavMenu => {
   return navMenuItems;
 };
 
-const TopNavbar = () => {
-  const { menus, loading, error } = useDynamicMenus();
-  const { logo, loading: logoLoading, error: logoError } = useLogo();
-  
+const TopNavbar = ({ dynamicMenus, logo }: TopNavbarProps) => {
+  // Use the custom ISR hook for better organization
+  const { menusData, logoData, isLoading, hasError, dataSource } = useNavbarISR(
+    { dynamicMenus, logo }
+  );
+
   // Convert dynamic menus to NavMenu format or use fallback
-  const menuData = menus.length > 0 ? convertDynamicMenuToNavMenu(menus) : fallbackData;
-  
-  // Debug logging
-  console.log('🔍 TopNavbar Debug:', {
-    loading,
-    error,
-    menusCount: menus.length,
-    menuDataCount: menuData.length,
-    usingFallback: menus.length === 0,
-    menuData,
-    logo: logo ? { url: logo.url, altText: logo.altText } : null,
-    logoLoading,
-    logoError
-  });
+  const menuData =
+    menusData.length > 0
+      ? convertDynamicMenuToNavMenu(menusData)
+      : fallbackData;
 
-
-  console.log('logo at 138', logo)
+  // Debug logging (only in development)
+  if (process.env.NODE_ENV === "development") {
+    console.log("🔍 TopNavbar ISR Debug:", {
+      isLoading,
+      hasError,
+      menusCount: menusData.length,
+      menuDataCount: menuData.length,
+      usingFallback: menusData.length === 0,
+      dataSource,
+      hasLogoData: !!logoData,
+      performanceMetrics: {
+        hasServerData: dataSource.menusFromServer || dataSource.logoFromServer,
+        dataCompleteness: {
+          hasMenus: menusData.length > 0,
+          hasLogo: !!logoData,
+        },
+      },
+    });
+  }
 
   return (
     <nav className="sticky top-0 bg-white z-20">
@@ -144,33 +166,34 @@ const TopNavbar = () => {
           <div className="block md:hidden mr-4">
             <ResTopNavbar data={menuData} />
           </div>
-          <Link
-            href="/"
-            className="mr-3 lg:mr-10"
-          >
-            {logoLoading ? (
+          <Link href="/" className="mr-3 lg:mr-10">
+            {isLoading && !logoData ? (
               <div className="animate-pulse bg-gray-200 h-8 w-32 rounded"></div>
-            ) : logoError ? (
-              <span className={cn([
-                integralCF.className,
-                "text-2xl lg:text-[32px] mb-2",
-              ])}>
-               CodeZyne
+            ) : hasError && !logoData ? (
+              <span
+                className={cn([
+                  integralCF.className,
+                  "text-2xl lg:text-[32px] mb-2",
+                ])}
+              >
+                CodeZyne
               </span>
-            ) : logo ? (
+            ) : logoData ? (
               <Image
-                src={logo.url}
-                alt={logo.altText}
+                src={logoData.url}
+                alt={logoData.altText}
                 width={100}
                 height={100}
                 // className="h-8 lg:h-10 w-auto object-contain"
                 priority
               />
             ) : (
-              <span className={cn([
-                integralCF.className,
-                "text-2xl lg:text-[32px] mb-2",
-              ])}>
+              <span
+                className={cn([
+                  integralCF.className,
+                  "text-2xl lg:text-[32px] mb-2",
+                ])}
+              >
                 CodeZyne
               </span>
             )}
@@ -178,13 +201,13 @@ const TopNavbar = () => {
         </div>
         <NavigationMenu className="hidden md:flex mr-2 lg:mr-7">
           <NavigationMenuList>
-            {loading ? (
+            {isLoading ? (
               <div className="flex items-center space-x-4">
                 <div className="animate-pulse bg-gray-200 h-6 w-16 rounded"></div>
                 <div className="animate-pulse bg-gray-200 h-6 w-20 rounded"></div>
                 <div className="animate-pulse bg-gray-200 h-6 w-18 rounded"></div>
               </div>
-            ) : error ? (
+            ) : hasError ? (
               <div className="text-red-500 text-sm">Error loading menus</div>
             ) : (
               menuData.map((item) => (
@@ -246,4 +269,14 @@ const TopNavbar = () => {
   );
 };
 
-export default TopNavbar;
+// Memoize the component to prevent unnecessary re-renders
+export default React.memo(TopNavbar, (prevProps, nextProps) => {
+  // Only re-render if the actual data has changed
+  const menusChanged =
+    JSON.stringify(prevProps.dynamicMenus) !==
+    JSON.stringify(nextProps.dynamicMenus);
+  const logoChanged =
+    JSON.stringify(prevProps.logo) !== JSON.stringify(nextProps.logo);
+
+  return !menusChanged && !logoChanged;
+});

@@ -56,7 +56,7 @@ import {
   reorderDynamicMenuItems,
   type DynamicMenuFormData,
   type DynamicMenuItemFormData,
-  type DynamicMenuFilters
+  type DynamicMenuFilters,
 } from "@/actions/content";
 import {
   DndContext,
@@ -66,17 +66,17 @@ import {
   useSensor,
   useSensors,
   DragEndEvent,
-} from '@dnd-kit/core';
+} from "@dnd-kit/core";
 import {
   arrayMove,
   SortableContext,
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
-} from '@dnd-kit/sortable';
-import {
-  useSortable,
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
+} from "@dnd-kit/sortable";
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { useDynamicMenuISR } from "@/hooks/use-dynamic-menu-isr";
+import { handleDynamicMenusUpdate } from "@/actions/revalidate";
 
 // Types
 type DynamicMenuData = {
@@ -123,12 +123,12 @@ type CreateDynamicMenuItemData = {
 };
 
 // Sortable Menu Item Component
-function SortableMenuItem({ 
-  item, 
-  onEdit, 
-  onDelete, 
-  onToggleActive, 
-  onAddChild 
+function SortableMenuItem({
+  item,
+  onEdit,
+  onDelete,
+  onToggleActive,
+  onAddChild,
 }: {
   item: DynamicMenuItemData;
   onEdit: (item: DynamicMenuItemData) => void;
@@ -156,7 +156,7 @@ function SortableMenuItem({
       ref={setNodeRef}
       style={style}
       className={`border rounded-lg p-4 bg-white shadow-sm ${
-        isDragging ? 'shadow-lg' : ''
+        isDragging ? "shadow-lg" : ""
       }`}
     >
       <div className="flex items-center justify-between">
@@ -179,11 +179,11 @@ function SortableMenuItem({
                 <span
                   className={`px-2 py-1 text-xs rounded-full ${
                     item.isActive
-                      ? 'bg-green-100 text-green-800'
-                      : 'bg-gray-100 text-gray-800'
+                      ? "bg-green-100 text-green-800"
+                      : "bg-gray-100 text-gray-800"
                   }`}
                 >
-                  {item.isActive ? 'Active' : 'Inactive'}
+                  {item.isActive ? "Active" : "Inactive"}
                 </span>
               </div>
               <p className="text-sm text-gray-600">{item.url}</p>
@@ -215,7 +215,11 @@ function SortableMenuItem({
             variant="outline"
             size="sm"
             onClick={() => onToggleActive(item)}
-            className={item.isActive ? "text-orange-600 hover:text-orange-700" : "text-green-600 hover:text-green-700"}
+            className={
+              item.isActive
+                ? "text-orange-600 hover:text-orange-700"
+                : "text-green-600 hover:text-green-700"
+            }
           >
             <Power className="h-3 w-3" />
           </Button>
@@ -232,7 +236,10 @@ function SortableMenuItem({
       {item.children && item.children.length > 0 && (
         <div className="mt-3 ml-8 space-y-2">
           {item.children.map((child) => (
-            <div key={child.id} className="border-l-2 border-gray-200 pl-4 py-2">
+            <div
+              key={child.id}
+              className="border-l-2 border-gray-200 pl-4 py-2"
+            >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   {child.icon && <span className="text-sm">{child.icon}</span>}
@@ -245,11 +252,11 @@ function SortableMenuItem({
                       <span
                         className={`px-2 py-1 text-xs rounded-full ${
                           child.isActive
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-gray-100 text-gray-800'
+                            ? "bg-green-100 text-green-800"
+                            : "bg-gray-100 text-gray-800"
                         }`}
                       >
-                        {child.isActive ? 'Active' : 'Inactive'}
+                        {child.isActive ? "Active" : "Inactive"}
                       </span>
                     </div>
                     <p className="text-xs text-gray-600">{child.url}</p>
@@ -269,7 +276,9 @@ function SortableMenuItem({
                     size="sm"
                     onClick={() => onToggleActive(child)}
                     className={`h-6 px-2 ${
-                      child.isActive ? "text-orange-600 hover:text-orange-700" : "text-green-600 hover:text-green-700"
+                      child.isActive
+                        ? "text-orange-600 hover:text-orange-700"
+                        : "text-green-600 hover:text-green-700"
                     }`}
                   >
                     <Power className="h-3 w-3" />
@@ -292,30 +301,58 @@ function SortableMenuItem({
   );
 }
 
-export function DynamicMenuManagement() {
+interface DynamicMenuManagementProps {
+  initialMenus?: any[];
+  initialPagination?: any;
+}
+
+export function DynamicMenuManagement({
+  initialMenus,
+  initialPagination,
+}: DynamicMenuManagementProps) {
+  // Use the custom ISR hook for better data management
+  const {
+    menus: isrMenus,
+    pagination,
+    loading,
+    error,
+    dataSource,
+    performanceMetrics,
+    loadMore,
+    refresh,
+  } = useDynamicMenuISR({
+    initialMenus: initialMenus || [],
+    initialPagination,
+  });
+
   const [menus, setMenus] = useState<DynamicMenuData[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [selectedMenu, setSelectedMenu] = useState<DynamicMenuData | null>(null);
+  const [selectedMenu, setSelectedMenu] = useState<DynamicMenuData | null>(
+    null
+  );
   const [isCreateMenuOpen, setIsCreateMenuOpen] = useState(false);
   const [isEditMenuOpen, setIsEditMenuOpen] = useState(false);
   const [isCreateItemOpen, setIsCreateItemOpen] = useState(false);
   const [isEditItemOpen, setIsEditItemOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<DynamicMenuItemData | null>(null);
-  const [parentItem, setParentItem] = useState<DynamicMenuItemData | null>(null);
+  const [editingItem, setEditingItem] = useState<DynamicMenuItemData | null>(
+    null
+  );
+  const [parentItem, setParentItem] = useState<DynamicMenuItemData | null>(
+    null
+  );
 
   // Form states
   const [menuForm, setMenuForm] = useState<CreateDynamicMenuData>({
-    name: '',
-    description: '',
-    slug: '',
+    name: "",
+    description: "",
+    slug: "",
     isActive: true,
   });
 
   const [itemForm, setItemForm] = useState<CreateDynamicMenuItemData>({
-    label: '',
-    url: '',
-    description: '',
-    icon: '',
+    label: "",
+    url: "",
+    description: "",
+    icon: "",
     isExternal: false,
     isActive: true,
     order: 1,
@@ -328,191 +365,255 @@ export function DynamicMenuManagement() {
     })
   );
 
-  // Load menus
+  // Load menus (fallback for when ISR data is not available)
   const loadMenus = async () => {
-    setLoading(true);
     try {
       const response = await getDynamicMenus();
       if (response.success) {
         setMenus(response.data || []);
       } else {
-        toast.error(response.message || 'Failed to load menus');
+        toast.error(response.message || "Failed to load menus");
       }
     } catch (error) {
-      toast.error('Failed to load menus');
-    } finally {
-      setLoading(false);
+      toast.error("Failed to load menus");
     }
   };
 
+  // Load menus on component mount and when ISR data changes
   useEffect(() => {
-    loadMenus();
-  }, []);
+    if (isrMenus.length > 0) {
+      // Use ISR data if available
+      setMenus(isrMenus);
+    } else {
+      // Fallback to client-side fetching if no ISR data
+      loadMenus();
+    }
+  }, [isrMenus]);
+
+  // Debug logging (only in development)
+  if (process.env.NODE_ENV === "development") {
+    console.log("🔍 DynamicMenuManagement ISR Debug:", {
+      loading,
+      error,
+      dataSource,
+      performanceMetrics,
+      menusCount: menus.length,
+    });
+  }
 
   // Menu handlers
   const handleCreateMenu = async () => {
     if (!menuForm.name.trim() || !menuForm.slug.trim()) {
-      toast.error('Name and slug are required');
+      toast.error("Name and slug are required");
       return;
     }
 
     try {
       const response = await createDynamicMenu(menuForm);
       if (response.success) {
-        toast.success('Menu created successfully');
+        toast.success("Menu created successfully");
         setIsCreateMenuOpen(false);
-        setMenuForm({ name: '', description: '', slug: '', isActive: true });
+        setMenuForm({ name: "", description: "", slug: "", isActive: true });
         loadMenus();
+
+        // Trigger ISR cache revalidation
+        await handleDynamicMenusUpdate();
       } else {
         toast.error(response.message);
       }
     } catch (error) {
-      toast.error('Failed to create menu');
+      toast.error("Failed to create menu");
     }
   };
 
   const handleEditMenu = async () => {
     if (!selectedMenu || !menuForm.name.trim() || !menuForm.slug.trim()) {
-      toast.error('Name and slug are required');
+      toast.error("Name and slug are required");
       return;
     }
 
     try {
       const response = await updateDynamicMenu(selectedMenu._id!, menuForm);
       if (response.success) {
-        toast.success('Menu updated successfully');
+        toast.success("Menu updated successfully");
         setIsEditMenuOpen(false);
         setSelectedMenu(null);
-        setMenuForm({ name: '', description: '', slug: '', isActive: true });
+        setMenuForm({ name: "", description: "", slug: "", isActive: true });
         loadMenus();
       } else {
         toast.error(response.message);
       }
     } catch (error) {
-      toast.error('Failed to update menu');
+      toast.error("Failed to update menu");
     }
   };
 
   const handleDeleteMenu = async (menu: DynamicMenuData) => {
-    if (!confirm('Are you sure you want to delete this menu?')) return;
+    if (!confirm("Are you sure you want to delete this menu?")) return;
 
     try {
       const response = await deleteDynamicMenu(menu._id!);
       if (response.success) {
-        toast.success('Menu deleted successfully');
+        toast.success("Menu deleted successfully");
         loadMenus();
+
+        // Trigger ISR cache revalidation
+        await handleDynamicMenusUpdate();
       } else {
         toast.error(response.message);
       }
     } catch (error) {
-      toast.error('Failed to delete menu');
+      toast.error("Failed to delete menu");
     }
   };
 
   const handleToggleMenuActive = async (menu: DynamicMenuData) => {
     try {
-      const response = await updateDynamicMenu(menu._id!, { isActive: !menu.isActive });
+      const response = await updateDynamicMenu(menu._id!, {
+        isActive: !menu.isActive,
+      });
       if (response.success) {
-        toast.success(`Menu ${!menu.isActive ? 'activated' : 'deactivated'}`);
+        toast.success(`Menu ${!menu.isActive ? "activated" : "deactivated"}`);
         loadMenus();
+
+        // Trigger ISR cache revalidation
+        await handleDynamicMenusUpdate();
       } else {
         toast.error(response.message);
       }
     } catch (error) {
-      toast.error('Failed to update menu');
+      toast.error("Failed to update menu");
     }
   };
 
   // Item handlers
   const handleCreateItem = async () => {
     if (!selectedMenu || !itemForm.label.trim() || !itemForm.url.trim()) {
-      toast.error('Label and URL are required');
+      toast.error("Label and URL are required");
       return;
     }
 
     try {
       const response = await createDynamicMenuItem(selectedMenu._id!, itemForm);
       if (response.success) {
-        toast.success('Menu item created successfully');
+        toast.success("Menu item created successfully");
         setIsCreateItemOpen(false);
-        setItemForm({ label: '', url: '', description: '', icon: '', isExternal: false, isActive: true, order: 1 });
+        setItemForm({
+          label: "",
+          url: "",
+          description: "",
+          icon: "",
+          isExternal: false,
+          isActive: true,
+          order: 1,
+        });
         loadMenus();
       } else {
         toast.error(response.message);
       }
     } catch (error) {
-      toast.error('Failed to create menu item');
+      toast.error("Failed to create menu item");
     }
   };
 
   const handleEditItem = async () => {
     if (!editingItem || !itemForm.label.trim() || !itemForm.url.trim()) {
-      toast.error('Label and URL are required');
+      toast.error("Label and URL are required");
       return;
     }
 
     try {
-      const response = await updateDynamicMenuItem(selectedMenu!._id!, editingItem.id, itemForm);
+      const response = await updateDynamicMenuItem(
+        selectedMenu!._id!,
+        editingItem.id,
+        itemForm
+      );
       if (response.success) {
-        toast.success('Menu item updated successfully');
+        toast.success("Menu item updated successfully");
         setIsEditItemOpen(false);
         setEditingItem(null);
-        setItemForm({ label: '', url: '', description: '', icon: '', isExternal: false, isActive: true, order: 1 });
+        setItemForm({
+          label: "",
+          url: "",
+          description: "",
+          icon: "",
+          isExternal: false,
+          isActive: true,
+          order: 1,
+        });
         loadMenus();
       } else {
         toast.error(response.message);
       }
     } catch (error) {
-      toast.error('Failed to update menu item');
+      toast.error("Failed to update menu item");
     }
   };
 
   const handleDeleteItem = async (item: DynamicMenuItemData) => {
-    if (!confirm('Are you sure you want to delete this menu item?')) return;
+    if (!confirm("Are you sure you want to delete this menu item?")) return;
 
     try {
       const response = await deleteDynamicMenuItem(selectedMenu!._id!, item.id);
       if (response.success) {
-        toast.success('Menu item deleted successfully');
+        toast.success("Menu item deleted successfully");
         loadMenus();
       } else {
         toast.error(response.message);
       }
     } catch (error) {
-      toast.error('Failed to delete menu item');
+      toast.error("Failed to delete menu item");
     }
   };
 
   const handleToggleItemActive = async (item: DynamicMenuItemData) => {
     try {
-      const response = await updateDynamicMenuItem(selectedMenu!._id!, item.id, { isActive: !item.isActive });
+      const response = await updateDynamicMenuItem(
+        selectedMenu!._id!,
+        item.id,
+        { isActive: !item.isActive }
+      );
       if (response.success) {
-        toast.success(`Menu item ${!item.isActive ? 'activated' : 'deactivated'}`);
+        toast.success(
+          `Menu item ${!item.isActive ? "activated" : "deactivated"}`
+        );
         loadMenus();
       } else {
         toast.error(response.message);
       }
     } catch (error) {
-      toast.error('Failed to update menu item');
+      toast.error("Failed to update menu item");
     }
   };
 
   const handleAddChild = (item: DynamicMenuItemData) => {
     setParentItem(item);
-    setItemForm({ label: '', url: '', description: '', icon: '', isExternal: false, isActive: true, order: 1 });
+    setItemForm({
+      label: "",
+      url: "",
+      description: "",
+      icon: "",
+      isExternal: false,
+      isActive: true,
+      order: 1,
+    });
     setIsCreateItemOpen(true);
   };
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
-    
+
     if (!selectedMenu || !over || active.id === over.id) return;
 
-    const oldIndex = selectedMenu.items.findIndex(item => item.id === active.id);
-    const newIndex = selectedMenu.items.findIndex(item => item.id === over.id);
+    const oldIndex = selectedMenu.items.findIndex(
+      (item) => item.id === active.id
+    );
+    const newIndex = selectedMenu.items.findIndex(
+      (item) => item.id === over.id
+    );
 
     const newItems = arrayMove(selectedMenu.items, oldIndex, newIndex);
-    
+
     // Update order values
     const updatedItems = newItems.map((item, index) => ({
       ...item,
@@ -525,16 +626,23 @@ export function DynamicMenuManagement() {
     });
 
     try {
-      const response = await reorderDynamicMenuItems(selectedMenu._id!, [{ updates: updatedItems.map(item => ({ id: item.id.toString(), order: item.order })) }]);
-    
+      const response = await reorderDynamicMenuItems(selectedMenu._id!, [
+        {
+          updates: updatedItems.map((item) => ({
+            id: item.id.toString(),
+            order: item.order,
+          })),
+        },
+      ]);
+
       if (!response.success) {
-        toast.error('Failed to reorder items');
+        toast.error("Failed to reorder items");
         loadMenus(); // Reload to get correct order
       } else {
-        toast.success('Items reordered successfully');
+        toast.success("Items reordered successfully");
       }
     } catch (error) {
-      toast.error('Failed to reorder items');
+      toast.error("Failed to reorder items");
       loadMenus();
     }
   };
@@ -543,7 +651,7 @@ export function DynamicMenuManagement() {
     setSelectedMenu(menu);
     setMenuForm({
       name: menu.name,
-      description: menu.description || '',
+      description: menu.description || "",
       slug: menu.slug,
       isActive: menu.isActive,
     });
@@ -555,8 +663,8 @@ export function DynamicMenuManagement() {
     setItemForm({
       label: item.label,
       url: item.url,
-      description: item.description || '',
-      icon: item.icon || '',
+      description: item.description || "",
+      icon: item.icon || "",
       isExternal: item.isExternal || false,
       isActive: item.isActive,
       order: item.order,
@@ -579,12 +687,10 @@ export function DynamicMenuManagement() {
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold">Dynamic Menus</h3>
           <div className="flex gap-2">
-            <Button
-              variant="outline"
-              onClick={loadMenus}
-              disabled={loading}
-            >
-              <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            <Button variant="outline" onClick={loadMenus} disabled={loading}>
+              <RefreshCw
+                className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`}
+              />
               Refresh
             </Button>
             <Dialog open={isCreateMenuOpen} onOpenChange={setIsCreateMenuOpen}>
@@ -607,7 +713,9 @@ export function DynamicMenuManagement() {
                     <Input
                       id="menu-name"
                       value={menuForm.name}
-                      onChange={(e) => setMenuForm({ ...menuForm, name: e.target.value })}
+                      onChange={(e) =>
+                        setMenuForm({ ...menuForm, name: e.target.value })
+                      }
                       placeholder="Enter menu name"
                     />
                   </div>
@@ -616,7 +724,9 @@ export function DynamicMenuManagement() {
                     <Input
                       id="menu-slug"
                       value={menuForm.slug}
-                      onChange={(e) => setMenuForm({ ...menuForm, slug: e.target.value })}
+                      onChange={(e) =>
+                        setMenuForm({ ...menuForm, slug: e.target.value })
+                      }
                       placeholder="Enter menu slug (e.g., main-nav)"
                     />
                   </div>
@@ -625,7 +735,12 @@ export function DynamicMenuManagement() {
                     <Textarea
                       id="menu-description"
                       value={menuForm.description}
-                      onChange={(e) => setMenuForm({ ...menuForm, description: e.target.value })}
+                      onChange={(e) =>
+                        setMenuForm({
+                          ...menuForm,
+                          description: e.target.value,
+                        })
+                      }
                       placeholder="Enter menu description"
                     />
                   </div>
@@ -634,18 +749,21 @@ export function DynamicMenuManagement() {
                       type="checkbox"
                       id="menu-active"
                       checked={menuForm.isActive}
-                      onChange={(e) => setMenuForm({ ...menuForm, isActive: e.target.checked })}
+                      onChange={(e) =>
+                        setMenuForm({ ...menuForm, isActive: e.target.checked })
+                      }
                     />
                     <Label htmlFor="menu-active">Active</Label>
                   </div>
                 </div>
                 <DialogFooter>
-                  <Button variant="outline" onClick={() => setIsCreateMenuOpen(false)}>
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsCreateMenuOpen(false)}
+                  >
                     Cancel
                   </Button>
-                  <Button onClick={handleCreateMenu}>
-                    Create Menu
-                  </Button>
+                  <Button onClick={handleCreateMenu}>Create Menu</Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
@@ -663,15 +781,15 @@ export function DynamicMenuManagement() {
                       <span
                         className={`px-2 py-1 text-xs rounded-full ${
                           menu.isActive
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-gray-100 text-gray-800'
+                            ? "bg-green-100 text-green-800"
+                            : "bg-gray-100 text-gray-800"
                         }`}
                       >
-                        {menu.isActive ? 'Active' : 'Inactive'}
+                        {menu.isActive ? "Active" : "Inactive"}
                       </span>
                     </CardTitle>
                     <CardDescription>
-                      {menu.description || 'No description'}
+                      {menu.description || "No description"}
                     </CardDescription>
                     <p className="text-sm text-gray-500 mt-1">
                       Slug: {menu.slug} • {menu.items?.length || 0} items
@@ -697,7 +815,11 @@ export function DynamicMenuManagement() {
                       variant="outline"
                       size="sm"
                       onClick={() => handleToggleMenuActive(menu)}
-                      className={menu.isActive ? "text-orange-600 hover:text-orange-700" : "text-green-600 hover:text-green-700"}
+                      className={
+                        menu.isActive
+                          ? "text-orange-600 hover:text-orange-700"
+                          : "text-green-600 hover:text-green-700"
+                      }
                     >
                       <Power className="h-4 w-4" />
                     </Button>
@@ -729,14 +851,14 @@ export function DynamicMenuManagement() {
                 </CardDescription>
               </div>
               <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => setSelectedMenu(null)}
-                >
+                <Button variant="outline" onClick={() => setSelectedMenu(null)}>
                   <X className="h-4 w-4 mr-2" />
                   Close
                 </Button>
-                <Dialog open={isCreateItemOpen} onOpenChange={setIsCreateItemOpen}>
+                <Dialog
+                  open={isCreateItemOpen}
+                  onOpenChange={setIsCreateItemOpen}
+                >
                   <DialogTrigger asChild>
                     <Button>
                       <Plus className="h-4 w-4 mr-2" />
@@ -746,13 +868,14 @@ export function DynamicMenuManagement() {
                   <DialogContent>
                     <DialogHeader>
                       <DialogTitle>
-                        {parentItem ? `Add Child Item to ${parentItem.label}` : 'Add Menu Item'}
+                        {parentItem
+                          ? `Add Child Item to ${parentItem.label}`
+                          : "Add Menu Item"}
                       </DialogTitle>
                       <DialogDescription>
-                        {parentItem 
+                        {parentItem
                           ? `Add a child item under ${parentItem.label}`
-                          : 'Add a new item to this menu'
-                        }
+                          : "Add a new item to this menu"}
                       </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4">
@@ -761,7 +884,9 @@ export function DynamicMenuManagement() {
                         <Input
                           id="item-label"
                           value={itemForm.label}
-                          onChange={(e) => setItemForm({ ...itemForm, label: e.target.value })}
+                          onChange={(e) =>
+                            setItemForm({ ...itemForm, label: e.target.value })
+                          }
                           placeholder="Enter item label"
                         />
                       </div>
@@ -770,7 +895,9 @@ export function DynamicMenuManagement() {
                         <Input
                           id="item-url"
                           value={itemForm.url}
-                          onChange={(e) => setItemForm({ ...itemForm, url: e.target.value })}
+                          onChange={(e) =>
+                            setItemForm({ ...itemForm, url: e.target.value })
+                          }
                           placeholder="Enter item URL"
                         />
                       </div>
@@ -779,7 +906,12 @@ export function DynamicMenuManagement() {
                         <Textarea
                           id="item-description"
                           value={itemForm.description}
-                          onChange={(e) => setItemForm({ ...itemForm, description: e.target.value })}
+                          onChange={(e) =>
+                            setItemForm({
+                              ...itemForm,
+                              description: e.target.value,
+                            })
+                          }
                           placeholder="Enter item description"
                         />
                       </div>
@@ -788,7 +920,9 @@ export function DynamicMenuManagement() {
                         <Input
                           id="item-icon"
                           value={itemForm.icon}
-                          onChange={(e) => setItemForm({ ...itemForm, icon: e.target.value })}
+                          onChange={(e) =>
+                            setItemForm({ ...itemForm, icon: e.target.value })
+                          }
                           placeholder="Enter icon (emoji or icon name)"
                         />
                       </div>
@@ -798,7 +932,12 @@ export function DynamicMenuManagement() {
                             type="checkbox"
                             id="item-external"
                             checked={itemForm.isExternal}
-                            onChange={(e) => setItemForm({ ...itemForm, isExternal: e.target.checked })}
+                            onChange={(e) =>
+                              setItemForm({
+                                ...itemForm,
+                                isExternal: e.target.checked,
+                              })
+                            }
                           />
                           <Label htmlFor="item-external">External Link</Label>
                         </div>
@@ -807,22 +946,28 @@ export function DynamicMenuManagement() {
                             type="checkbox"
                             id="item-active"
                             checked={itemForm.isActive}
-                            onChange={(e) => setItemForm({ ...itemForm, isActive: e.target.checked })}
+                            onChange={(e) =>
+                              setItemForm({
+                                ...itemForm,
+                                isActive: e.target.checked,
+                              })
+                            }
                           />
                           <Label htmlFor="item-active">Active</Label>
                         </div>
                       </div>
                     </div>
                     <DialogFooter>
-                      <Button variant="outline" onClick={() => {
-                        setIsCreateItemOpen(false);
-                        setParentItem(null);
-                      }}>
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setIsCreateItemOpen(false);
+                          setParentItem(null);
+                        }}
+                      >
                         Cancel
                       </Button>
-                      <Button onClick={handleCreateItem}>
-                        Add Item
-                      </Button>
+                      <Button onClick={handleCreateItem}>Add Item</Button>
                     </DialogFooter>
                   </DialogContent>
                 </Dialog>
@@ -836,7 +981,7 @@ export function DynamicMenuManagement() {
               onDragEnd={handleDragEnd}
             >
               <SortableContext
-                items={selectedMenu.items?.map(item => item.id) || []}
+                items={selectedMenu.items?.map((item) => item.id) || []}
                 strategy={verticalListSortingStrategy}
               >
                 <div className="space-y-3">
@@ -867,9 +1012,7 @@ export function DynamicMenuManagement() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Edit Menu</DialogTitle>
-            <DialogDescription>
-              Update the menu information.
-            </DialogDescription>
+            <DialogDescription>Update the menu information.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
@@ -877,7 +1020,9 @@ export function DynamicMenuManagement() {
               <Input
                 id="edit-menu-name"
                 value={menuForm.name}
-                onChange={(e) => setMenuForm({ ...menuForm, name: e.target.value })}
+                onChange={(e) =>
+                  setMenuForm({ ...menuForm, name: e.target.value })
+                }
                 placeholder="Enter menu name"
               />
             </div>
@@ -886,7 +1031,9 @@ export function DynamicMenuManagement() {
               <Input
                 id="edit-menu-slug"
                 value={menuForm.slug}
-                onChange={(e) => setMenuForm({ ...menuForm, slug: e.target.value })}
+                onChange={(e) =>
+                  setMenuForm({ ...menuForm, slug: e.target.value })
+                }
                 placeholder="Enter menu slug"
               />
             </div>
@@ -895,7 +1042,9 @@ export function DynamicMenuManagement() {
               <Textarea
                 id="edit-menu-description"
                 value={menuForm.description}
-                onChange={(e) => setMenuForm({ ...menuForm, description: e.target.value })}
+                onChange={(e) =>
+                  setMenuForm({ ...menuForm, description: e.target.value })
+                }
                 placeholder="Enter menu description"
               />
             </div>
@@ -904,7 +1053,9 @@ export function DynamicMenuManagement() {
                 type="checkbox"
                 id="edit-menu-active"
                 checked={menuForm.isActive}
-                onChange={(e) => setMenuForm({ ...menuForm, isActive: e.target.checked })}
+                onChange={(e) =>
+                  setMenuForm({ ...menuForm, isActive: e.target.checked })
+                }
               />
               <Label htmlFor="edit-menu-active">Active</Label>
             </div>
@@ -913,9 +1064,7 @@ export function DynamicMenuManagement() {
             <Button variant="outline" onClick={() => setIsEditMenuOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleEditMenu}>
-              Update Menu
-            </Button>
+            <Button onClick={handleEditMenu}>Update Menu</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -935,7 +1084,9 @@ export function DynamicMenuManagement() {
               <Input
                 id="edit-item-label"
                 value={itemForm.label}
-                onChange={(e) => setItemForm({ ...itemForm, label: e.target.value })}
+                onChange={(e) =>
+                  setItemForm({ ...itemForm, label: e.target.value })
+                }
                 placeholder="Enter item label"
               />
             </div>
@@ -944,7 +1095,9 @@ export function DynamicMenuManagement() {
               <Input
                 id="edit-item-url"
                 value={itemForm.url}
-                onChange={(e) => setItemForm({ ...itemForm, url: e.target.value })}
+                onChange={(e) =>
+                  setItemForm({ ...itemForm, url: e.target.value })
+                }
                 placeholder="Enter item URL"
               />
             </div>
@@ -953,7 +1106,9 @@ export function DynamicMenuManagement() {
               <Textarea
                 id="edit-item-description"
                 value={itemForm.description}
-                onChange={(e) => setItemForm({ ...itemForm, description: e.target.value })}
+                onChange={(e) =>
+                  setItemForm({ ...itemForm, description: e.target.value })
+                }
                 placeholder="Enter item description"
               />
             </div>
@@ -962,7 +1117,9 @@ export function DynamicMenuManagement() {
               <Input
                 id="edit-item-icon"
                 value={itemForm.icon}
-                onChange={(e) => setItemForm({ ...itemForm, icon: e.target.value })}
+                onChange={(e) =>
+                  setItemForm({ ...itemForm, icon: e.target.value })
+                }
                 placeholder="Enter icon (emoji or icon name)"
               />
             </div>
@@ -972,7 +1129,9 @@ export function DynamicMenuManagement() {
                   type="checkbox"
                   id="edit-item-external"
                   checked={itemForm.isExternal}
-                  onChange={(e) => setItemForm({ ...itemForm, isExternal: e.target.checked })}
+                  onChange={(e) =>
+                    setItemForm({ ...itemForm, isExternal: e.target.checked })
+                  }
                 />
                 <Label htmlFor="edit-item-external">External Link</Label>
               </div>
@@ -981,7 +1140,9 @@ export function DynamicMenuManagement() {
                   type="checkbox"
                   id="edit-item-active"
                   checked={itemForm.isActive}
-                  onChange={(e) => setItemForm({ ...itemForm, isActive: e.target.checked })}
+                  onChange={(e) =>
+                    setItemForm({ ...itemForm, isActive: e.target.checked })
+                  }
                 />
                 <Label htmlFor="edit-item-active">Active</Label>
               </div>
@@ -991,9 +1152,7 @@ export function DynamicMenuManagement() {
             <Button variant="outline" onClick={() => setIsEditItemOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleEditItem}>
-              Update Item
-            </Button>
+            <Button onClick={handleEditItem}>Update Item</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

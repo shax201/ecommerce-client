@@ -3,31 +3,45 @@
 import BreadcrumbProduct from "@/components/product-page/BreadcrumbProduct";
 import Header from "@/components/product-page/Header";
 import ProductDetailsSkeleton from "@/components/product-page/ProductDetailsSkeleton";
-import { useGetSingleProductQuery } from "@/lib/features/products/productApi";
 import { Tabs } from "@radix-ui/react-tabs";
 import { notFound } from "next/navigation";
 import React, { FC, useEffect } from "react";
+import { useProductISR } from "@/hooks/use-product-isr";
 
 interface IProductDetails {
   id: string;
+  initialProduct?: any;
 }
 
-const ProductDetails: FC<IProductDetails> = ({ id }) => {
-  const { data, isLoading, error } = useGetSingleProductQuery(id);
+const ProductDetails: FC<IProductDetails> = ({ id, initialProduct }) => {
+  const { product, loading, error, dataSource, performanceMetrics } =
+    useProductISR({
+      productId: id,
+      initialProduct,
+    });
 
   // Scroll to top when component mounts
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
 
-  console.log("", data);
+  // Debug logging (only in development)
+  if (process.env.NODE_ENV === "development") {
+    console.log("🔍 Product ISR Debug:", {
+      loading,
+      error,
+      dataSource,
+      performanceMetrics,
+      hasProduct: !!product,
+    });
+  }
 
   // Show skeleton while loading
-  if (isLoading) {
+  if (loading) {
     return <ProductDetailsSkeleton />;
   }
 
-  if (!isLoading && (!data || !data.success)) {
+  if (!loading && (!product || error)) {
     notFound(); // fallback if the product wasn't found
   }
 
@@ -35,11 +49,11 @@ const ProductDetails: FC<IProductDetails> = ({ id }) => {
     <main>
       <div className="max-w-frame mx-auto px-4 xl:px-0">
         <hr className="h-[1px] border-t-black/10 mb-5 sm:mb-6" />
-        {data && (
+        {product && (
           <>
-            <BreadcrumbProduct title={data?.data?.title ?? "product"} />
+            <BreadcrumbProduct title={product?.title ?? "product"} />
             <section className="mb-11">
-              <Header data={data.data} />
+              <Header data={product} />
             </section>
             <Tabs />
           </>

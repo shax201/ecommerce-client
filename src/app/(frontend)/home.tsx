@@ -5,12 +5,9 @@ import Brands from "@/components/homepage/Brands";
 import DressStyle from "@/components/homepage/DressStyle";
 import Header from "@/components/homepage/Header";
 import Reviews from "@/components/homepage/Reviews";
-import {
-  useGeNewArialsQuery,
-  useGetTopSellingProductsQuery,
-} from "@/lib/features/products/productApi";
 import { setGTMScript } from "@/lib/features/products/productsSlice";
 import { Review } from "@/types/review.types";
+import { Product } from "@/types/product.types";
 import { useEffect } from "react";
 import { useDispatch } from "react-redux";
 
@@ -60,64 +57,54 @@ export const reviewsData: Review[] = [
   },
 ];
 
-export default function HomePage() {
-  const { data: newProductRes, isLoading, isError } = useGeNewArialsQuery();
+interface HomePageProps {
+  newArrivals: Product[];
+  topSellingProducts: Product[];
+  companySettings?: any;
+  heroSections?: any[];
+  clientLogos?: any[];
+}
 
-  const { data: topProductRes, isLoading: isLoadTop } =
-    useGetTopSellingProductsQuery();
-
+export default function HomePage({
+  newArrivals,
+  topSellingProducts,
+  companySettings,
+  heroSections,
+  clientLogos,
+}: HomePageProps) {
   const dispatch = useDispatch();
 
+  // Set GTM script from server-side props if available
   useEffect(() => {
-    const fetchSettings = async () => {
-      try {
-        const response = await fetch(
-          `${process.env.NEXT_PUBLIC_BACKEND_URL}/company-setting/get-setting`
-        );
-
-        const data = await response.json();
-
-        if (data.success) {
-          const settings = data.data;
-
-          dispatch(setGTMScript(settings.gtmScript));
-        }
-      } catch (err: any) {
-      } finally {
-      }
-    };
-
-    fetchSettings();
-  }, []);
+    if (companySettings?.gtmScript) {
+      dispatch(setGTMScript(companySettings.gtmScript));
+    }
+  }, [companySettings, dispatch]);
 
   return (
     <>
-      <Header />
-      <Brands />
+      <Header heroSections={heroSections} />
+      <Brands clientLogos={clientLogos} />
       <main className="my-[50px] sm:my-[72px]">
-        {!isLoading && newProductRes?.success && !isError ? (
+        {newArrivals && newArrivals.length > 0 ? (
           <ProductListSec
             title="NEW ARRIVALS"
-            data={newProductRes.data}
+            data={newArrivals}
             viewAllLink="/shop#new-arrivals"
           />
-        ) : (
-          ""
-        )}
+        ) : null}
 
         <div className="max-w-frame mx-auto px-4 xl:px-0">
           <hr className="h-[1px] border-t-black/10 my-10 sm:my-16" />
         </div>
         <div className="mb-[50px] sm:mb-20">
-          {!isLoading && topProductRes?.success && !isError ? (
+          {topSellingProducts && topSellingProducts.length > 0 ? (
             <ProductListSec
               title="top selling"
-              data={topProductRes?.data}
+              data={topSellingProducts}
               viewAllLink="/shop#top-selling"
             />
-          ) : (
-            ""
-          )}
+          ) : null}
         </div>
         <div className="mb-[50px] sm:mb-20">
           <DressStyle />

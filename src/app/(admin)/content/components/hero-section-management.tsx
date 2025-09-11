@@ -13,12 +13,38 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { Upload, Save, Eye, Trash2, Loader2, RefreshCw, GripVertical, AlertCircle, Edit, Check, X, ChevronDown, Plus } from "lucide-react";
+import {
+  Upload,
+  Save,
+  Eye,
+  Trash2,
+  Loader2,
+  RefreshCw,
+  GripVertical,
+  AlertCircle,
+  Edit,
+  Check,
+  X,
+  ChevronDown,
+  Plus,
+} from "lucide-react";
 import { toast } from "sonner";
-import { HeroSectionService, type HeroSectionFormData, type ContentResponse } from "@/lib/services/content-service";
+import {
+  HeroSectionService,
+  type HeroSectionFormData,
+  type ContentResponse,
+} from "@/lib/services/content-service";
+import { useHeroSectionManagementISR } from "@/hooks/use-hero-section-management-isr";
+import { handleHeroSectionsUpdate } from "@/actions/revalidate";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 // Types matching backend API
 interface HeroSectionData {
@@ -38,36 +64,77 @@ interface HeroSectionData {
   updatedAt?: string;
 }
 
-export function HeroSectionManagement() {
+interface HeroSectionManagementProps {
+  heroSectionsData?: any[];
+}
+
+export function HeroSectionManagement({
+  heroSectionsData,
+}: HeroSectionManagementProps) {
+  // Use the custom ISR hook for better data management
+  const {
+    heroSections: isrHeroSections,
+    pagination,
+    loading: isLoading,
+    error: isrError,
+    dataSource,
+    performanceMetrics,
+    loadMore,
+    refresh,
+  } = useHeroSectionManagementISR({
+    heroSectionsData: heroSectionsData || [],
+  });
+
   const [heroSections, setHeroSections] = useState<HeroSectionData[]>([]);
   const [editingHero, setEditingHero] = useState<HeroSectionData | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [draggedItem, setDraggedItem] = useState<string | null>(null);
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
-  const [editingField, setEditingField] = useState<{ id: string; field: string } | null>(null);
+  const [editingField, setEditingField] = useState<{
+    id: string;
+    field: string;
+  } | null>(null);
   const [editingValue, setEditingValue] = useState<string>("");
   const [isBulkOperating, setIsBulkOperating] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [deleteConfirmModal, setDeleteConfirmModal] = useState<{ isOpen: boolean; hero: HeroSectionData | null }>({
+  const [deleteConfirmModal, setDeleteConfirmModal] = useState<{
+    isOpen: boolean;
+    hero: HeroSectionData | null;
+  }>({
     isOpen: false,
-    hero: null
+    hero: null,
   });
 
-  // Load hero sections on component mount
+  // Load hero sections on component mount and when ISR data changes
   useEffect(() => {
-    loadHeroSections();
-  }, []);
+    if (isrHeroSections.length > 0) {
+      // Use ISR data if available
+      setHeroSections(isrHeroSections);
+    } else {
+      // Fallback to client-side fetching if no ISR data
+      loadHeroSections();
+    }
+  }, [isrHeroSections]);
+
+  // Debug logging (only in development)
+  if (process.env.NODE_ENV === "development") {
+    console.log("🔍 HeroSectionManagement ISR Debug:", {
+      isLoading,
+      isrError,
+      dataSource,
+      performanceMetrics,
+      heroSectionsCount: heroSections.length,
+    });
+  }
 
   const loadHeroSections = async () => {
     try {
-      setIsLoading(true);
       setError(null);
       const response: ContentResponse = await HeroSectionService.getAll();
-      
+
       if (response.success && response.data) {
         setHeroSections(response.data);
         toast.success("Hero sections loaded successfully");
@@ -77,11 +144,12 @@ export function HeroSectionManagement() {
       }
     } catch (error) {
       console.error("Error loading hero sections:", error);
-      const errorMessage = error instanceof Error ? error.message : "Failed to load hero sections";
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to load hero sections";
       setError(errorMessage);
       toast.error(errorMessage);
     } finally {
-      setIsLoading(false);
+      // Loading state is managed by the ISR hook
     }
   };
 
@@ -89,35 +157,48 @@ export function HeroSectionManagement() {
     try {
       setIsSaving(true);
       setError(null);
-      
+
       if (editingHero) {
         // Update existing hero section
-        const response: ContentResponse = await HeroSectionService.update(editingHero._id, heroData);
-        
-        if (response.success && response.data) {
-        setHeroSections((prev) =>
-            prev.map((hero) => (hero._id === editingHero._id ? response.data : hero))
+        const response: ContentResponse = await HeroSectionService.update(
+          editingHero._id,
+          heroData
         );
-        setEditingHero(null);
-        toast.success("Hero section updated successfully");
+
+        if (response.success && response.data) {
+          setHeroSections((prev) =>
+            prev.map((hero) =>
+              hero._id === editingHero._id ? response.data : hero
+            )
+          );
+          setEditingHero(null);
+          toast.success("Hero section updated successfully");
+
+          // Trigger ISR cache revalidation
+          await handleHeroSectionsUpdate();
         } else {
           throw new Error(response.message || "Failed to update hero section");
         }
       } else {
         // Create new hero section
-        const response: ContentResponse = await HeroSectionService.create(heroData);
-        
+        const response: ContentResponse =
+          await HeroSectionService.create(heroData);
+
         if (response.success && response.data) {
           setHeroSections((prev) => [...prev, response.data]);
           setIsCreateModalOpen(false);
-        toast.success("Hero section added successfully");
+          toast.success("Hero section added successfully");
+
+          // Trigger ISR cache revalidation
+          await handleHeroSectionsUpdate();
         } else {
           throw new Error(response.message || "Failed to create hero section");
         }
       }
     } catch (error) {
       console.error("Error saving hero section:", error);
-      const errorMessage = error instanceof Error ? error.message : "Failed to save hero section";
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to save hero section";
       setError(errorMessage);
       toast.error(errorMessage);
       throw error; // Re-throw to let the form handle it
@@ -137,19 +218,24 @@ export function HeroSectionManagement() {
     try {
       setIsDeleting(hero._id);
       setError(null);
-      
-      const response: ContentResponse = await HeroSectionService.delete(hero._id);
-      
+
+      const response: ContentResponse = await HeroSectionService.delete(
+        hero._id
+      );
+
       if (response.success) {
         setHeroSections((prev) => prev.filter((h) => h._id !== hero._id));
-      toast.success("Hero section deleted successfully");
+        toast.success("Hero section deleted successfully");
         setDeleteConfirmModal({ isOpen: false, hero: null });
       } else {
         throw new Error(response.message || "Failed to delete hero section");
       }
     } catch (error) {
       console.error("Error deleting hero section:", error);
-      const errorMessage = error instanceof Error ? error.message : "Failed to delete hero section";
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Failed to delete hero section";
       setError(errorMessage);
       toast.error(errorMessage);
     } finally {
@@ -178,16 +264,23 @@ export function HeroSectionManagement() {
       const response: ContentResponse = await HeroSectionService.update(id, {
         isActive: !hero.isActive,
       });
-      
+
       if (response.success && response.data) {
-        setHeroSections((prev) => prev.map((h) => (h._id === id ? response.data : h)));
-      toast.success("Hero section status updated");
+        setHeroSections((prev) =>
+          prev.map((h) => (h._id === id ? response.data : h))
+        );
+        toast.success("Hero section status updated");
       } else {
-        throw new Error(response.message || "Failed to update hero section status");
+        throw new Error(
+          response.message || "Failed to update hero section status"
+        );
       }
     } catch (error) {
       console.error("Error toggling hero section status:", error);
-      const errorMessage = error instanceof Error ? error.message : "Failed to update hero section status";
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Failed to update hero section status";
       setError(errorMessage);
       toast.error(errorMessage);
     }
@@ -197,26 +290,35 @@ export function HeroSectionManagement() {
     setIsUploading(true);
     try {
       // Validate file type
-      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
+      const allowedTypes = [
+        "image/jpeg",
+        "image/jpg",
+        "image/png",
+        "image/webp",
+        "image/gif",
+      ];
       if (!allowedTypes.includes(file.type)) {
-        throw new Error('Please upload a valid image file (JPEG, PNG, WebP, or GIF)');
+        throw new Error(
+          "Please upload a valid image file (JPEG, PNG, WebP, or GIF)"
+        );
       }
 
       // Validate file size (max 5MB)
       const maxSize = 5 * 1024 * 1024; // 5MB
       if (file.size > maxSize) {
-        throw new Error('File size must be less than 5MB');
+        throw new Error("File size must be less than 5MB");
       }
 
       // TODO: Implement actual file upload to your storage service
       // For now, we'll use a mock URL
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    const mockUrl = URL.createObjectURL(file);
-    toast.success("File uploaded successfully");
-    return mockUrl;
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      const mockUrl = URL.createObjectURL(file);
+      toast.success("File uploaded successfully");
+      return mockUrl;
     } catch (error) {
       console.error("Error uploading file:", error);
-      const errorMessage = error instanceof Error ? error.message : "Failed to upload file";
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to upload file";
       toast.error(errorMessage);
       throw error;
     } finally {
@@ -227,13 +329,15 @@ export function HeroSectionManagement() {
   const handleReorder = async (updates: { id: string; order: number }[]) => {
     try {
       setError(null);
-      const response: ContentResponse = await HeroSectionService.reorder({ updates });
-      
+      const response: ContentResponse = await HeroSectionService.reorder({
+        updates,
+      });
+
       if (response.success) {
         // Update local state with new order
         const updatedSections = [...heroSections];
         updates.forEach(({ id, order }) => {
-          const section = updatedSections.find(s => s._id === id);
+          const section = updatedSections.find((s) => s._id === id);
           if (section) {
             section.order = order;
           }
@@ -246,7 +350,10 @@ export function HeroSectionManagement() {
       }
     } catch (error) {
       console.error("Error reordering hero sections:", error);
-      const errorMessage = error instanceof Error ? error.message : "Failed to reorder hero sections";
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Failed to reorder hero sections";
       setError(errorMessage);
       toast.error(errorMessage);
     }
@@ -264,15 +371,15 @@ export function HeroSectionManagement() {
 
   const handleDrop = (e: React.DragEvent, targetId: string) => {
     e.preventDefault();
-    
+
     if (!draggedItem || draggedItem === targetId) {
       setDraggedItem(null);
       return;
     }
 
-    const draggedIndex = heroSections.findIndex(s => s._id === draggedItem);
-    const targetIndex = heroSections.findIndex(s => s._id === targetId);
-    
+    const draggedIndex = heroSections.findIndex((s) => s._id === draggedItem);
+    const targetIndex = heroSections.findIndex((s) => s._id === targetId);
+
     if (draggedIndex === -1 || targetIndex === -1) {
       setDraggedItem(null);
       return;
@@ -286,14 +393,16 @@ export function HeroSectionManagement() {
     // Update order values
     const updates = newSections.map((section, index) => ({
       id: section._id,
-      order: index + 1
+      order: index + 1,
     }));
 
     // Update local state immediately for better UX
-    setHeroSections(newSections.map((section, index) => ({
-      ...section,
-      order: index + 1
-    })));
+    setHeroSections(
+      newSections.map((section, index) => ({
+        ...section,
+        order: index + 1,
+      }))
+    );
 
     // Send to backend
     handleReorder(updates);
@@ -305,7 +414,7 @@ export function HeroSectionManagement() {
     if (selectedItems.size === heroSections.length) {
       setSelectedItems(new Set());
     } else {
-      setSelectedItems(new Set(heroSections.map(hero => hero._id)));
+      setSelectedItems(new Set(heroSections.map((hero) => hero._id)));
     }
   };
 
@@ -322,7 +431,11 @@ export function HeroSectionManagement() {
   const handleBulkDelete = async () => {
     if (selectedItems.size === 0) return;
 
-    if (!confirm(`Are you sure you want to delete ${selectedItems.size} hero section(s)? This action cannot be undone.`)) {
+    if (
+      !confirm(
+        `Are you sure you want to delete ${selectedItems.size} hero section(s)? This action cannot be undone.`
+      )
+    ) {
       return;
     }
 
@@ -330,16 +443,20 @@ export function HeroSectionManagement() {
       setIsBulkOperating(true);
       setError(null);
 
-      const deletePromises = Array.from(selectedItems).map(id => 
+      const deletePromises = Array.from(selectedItems).map((id) =>
         HeroSectionService.delete(id)
       );
 
       const results = await Promise.allSettled(deletePromises);
-      const failed = results.filter(result => result.status === 'rejected').length;
+      const failed = results.filter(
+        (result) => result.status === "rejected"
+      ).length;
       const succeeded = results.length - failed;
 
       if (succeeded > 0) {
-        setHeroSections(prev => prev.filter(hero => !selectedItems.has(hero._id)));
+        setHeroSections((prev) =>
+          prev.filter((hero) => !selectedItems.has(hero._id))
+        );
         setSelectedItems(new Set());
         toast.success(`Successfully deleted ${succeeded} hero section(s)`);
       }
@@ -362,22 +479,26 @@ export function HeroSectionManagement() {
       setIsBulkOperating(true);
       setError(null);
 
-      const updatePromises = Array.from(selectedItems).map(id => 
+      const updatePromises = Array.from(selectedItems).map((id) =>
         HeroSectionService.update(id, { isActive })
       );
 
       const results = await Promise.allSettled(updatePromises);
-      const failed = results.filter(result => result.status === 'rejected').length;
+      const failed = results.filter(
+        (result) => result.status === "rejected"
+      ).length;
       const succeeded = results.length - failed;
 
       if (succeeded > 0) {
-        setHeroSections(prev => 
-          prev.map(hero => 
+        setHeroSections((prev) =>
+          prev.map((hero) =>
             selectedItems.has(hero._id) ? { ...hero, isActive } : hero
           )
         );
         setSelectedItems(new Set());
-        toast.success(`Successfully ${isActive ? 'activated' : 'deactivated'} ${succeeded} hero section(s)`);
+        toast.success(
+          `Successfully ${isActive ? "activated" : "deactivated"} ${succeeded} hero section(s)`
+        );
       }
 
       if (failed > 0) {
@@ -391,23 +512,24 @@ export function HeroSectionManagement() {
     }
   };
 
-
   const handleBulkReorder = () => {
-    const selectedHeroes = heroSections.filter(hero => selectedItems.has(hero._id));
-    const startOrder = Math.min(...selectedHeroes.map(h => h.order));
-    
+    const selectedHeroes = heroSections.filter((hero) =>
+      selectedItems.has(hero._id)
+    );
+    const startOrder = Math.min(...selectedHeroes.map((h) => h.order));
+
     // Create a simple reorder dialog
     const newOrder = prompt(
       `Enter new starting order for ${selectedItems.size} selected items (current: ${startOrder}):`,
       startOrder.toString()
     );
-    
+
     if (newOrder && !isNaN(parseInt(newOrder))) {
       const updates = selectedHeroes.map((hero, index) => ({
         id: hero._id,
-        order: parseInt(newOrder) + index
+        order: parseInt(newOrder) + index,
       }));
-      
+
       handleReorder(updates);
       setSelectedItems(new Set());
     }
@@ -429,13 +551,16 @@ export function HeroSectionManagement() {
 
     try {
       setError(null);
-      const response: ContentResponse = await HeroSectionService.update(editingField.id, {
-        [editingField.field]: editingValue
-      });
+      const response: ContentResponse = await HeroSectionService.update(
+        editingField.id,
+        {
+          [editingField.field]: editingValue,
+        }
+      );
 
       if (response.success && response.data) {
-        setHeroSections(prev => 
-          prev.map(hero => 
+        setHeroSections((prev) =>
+          prev.map((hero) =>
             hero._id === editingField.id ? response.data : hero
           )
         );
@@ -445,7 +570,8 @@ export function HeroSectionManagement() {
       }
     } catch (error) {
       console.error("Error updating field:", error);
-      const errorMessage = error instanceof Error ? error.message : "Failed to update";
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to update";
       toast.error(errorMessage);
     } finally {
       setEditingField(null);
@@ -454,9 +580,9 @@ export function HeroSectionManagement() {
   };
 
   const handleInlineKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
+    if (e.key === "Enter") {
       saveInlineEdit();
-    } else if (e.key === 'Escape') {
+    } else if (e.key === "Escape") {
       cancelInlineEdit();
     }
   };
@@ -517,7 +643,7 @@ export function HeroSectionManagement() {
                     Select All ({selectedItems.size}/{heroSections.length})
                   </Label>
                 </div>
-                
+
                 {selectedItems.size > 0 && (
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-muted-foreground">
@@ -563,7 +689,7 @@ export function HeroSectionManagement() {
                   </div>
                 )}
               </div>
-              
+
               <Button
                 variant="outline"
                 size="sm"
@@ -588,100 +714,122 @@ export function HeroSectionManagement() {
           heroSections
             .sort((a, b) => a.order - b.order)
             .map((hero) => (
-          <Card 
-            key={hero._id} 
-            className={`relative transition-all duration-200 ${
-              draggedItem === hero._id ? 'opacity-50 scale-95' : ''
-            } ${selectedItems.has(hero._id) ? 'ring-2 ring-primary' : ''}`}
-            draggable
-            onDragStart={(e) => handleDragStart(e, hero._id)}
-            onDragOver={handleDragOver}
-            onDrop={(e) => handleDrop(e, hero._id)}
-          >
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <Checkbox
-                    checked={selectedItems.has(hero._id)}
-                    onCheckedChange={() => handleSelectItem(hero._id)}
-                  />
-                  <div 
-                    className="cursor-move p-1 hover:bg-muted rounded"
-                    title="Drag to reorder"
-                  >
-                    <GripVertical className="h-4 w-4 text-muted-foreground" />
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs bg-muted px-2 py-1 rounded-full">
-                        Order: {hero.order}
-                      </span>
-                      {editingField?.id === hero._id && editingField?.field === 'title' ? (
-                        <div className="flex items-center gap-2">
-                          <Input
-                            value={editingValue}
-                            onChange={(e) => setEditingValue(e.target.value)}
-                            onKeyDown={handleInlineKeyPress}
-                            className="h-8"
-                            autoFocus
-                          />
-                          <Button size="sm" onClick={saveInlineEdit}>
-                            <Check className="h-3 w-3" />
-                          </Button>
-                          <Button size="sm" variant="outline" onClick={cancelInlineEdit}>
-                            <X className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      ) : (
-                        <div 
-                          className="flex items-center gap-2 cursor-pointer hover:bg-muted p-1 rounded"
-                          onClick={() => startInlineEdit(hero._id, 'title', hero.title)}
-                        >
-                    <CardTitle className="text-lg">{hero.title}</CardTitle>
-                          <Edit className="h-3 w-3 text-muted-foreground" />
-                        </div>
-                      )}
-                    </div>
-                    {editingField?.id === hero._id && editingField?.field === 'subtitle' ? (
-                      <div className="flex items-center gap-2 mt-1">
-                        <Input
-                          value={editingValue}
-                          onChange={(e) => setEditingValue(e.target.value)}
-                          onKeyDown={handleInlineKeyPress}
-                          className="h-8"
-                          autoFocus
-                        />
-                        <Button size="sm" onClick={saveInlineEdit}>
-                          <Check className="h-3 w-3" />
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={cancelInlineEdit}>
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <div 
-                        className="cursor-pointer hover:bg-muted p-1 rounded -ml-1"
-                        onClick={() => startInlineEdit(hero._id, 'subtitle', hero.subtitle || '')}
+              <Card
+                key={hero._id}
+                className={`relative transition-all duration-200 ${
+                  draggedItem === hero._id ? "opacity-50 scale-95" : ""
+                } ${selectedItems.has(hero._id) ? "ring-2 ring-primary" : ""}`}
+                draggable
+                onDragStart={(e) => handleDragStart(e, hero._id)}
+                onDragOver={handleDragOver}
+                onDrop={(e) => handleDrop(e, hero._id)}
+              >
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <Checkbox
+                        checked={selectedItems.has(hero._id)}
+                        onCheckedChange={() => handleSelectItem(hero._id)}
+                      />
+                      <div
+                        className="cursor-move p-1 hover:bg-muted rounded"
+                        title="Drag to reorder"
                       >
-                        <CardDescription className="flex items-center gap-1">
-                          {hero.subtitle || 'Click to add subtitle'}
-                          <Edit className="h-3 w-3 text-muted-foreground" />
-                        </CardDescription>
+                        <GripVertical className="h-4 w-4 text-muted-foreground" />
                       </div>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Switch
-                      checked={hero.isActive}
-                      onCheckedChange={() => handleToggleActive(hero._id)}
-                    />
-                    <span className="text-sm text-muted-foreground">
-                      {hero.isActive ? "Active" : "Inactive"}
-                    </span>
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  {/* <Button
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs bg-muted px-2 py-1 rounded-full">
+                            Order: {hero.order}
+                          </span>
+                          {editingField?.id === hero._id &&
+                          editingField?.field === "title" ? (
+                            <div className="flex items-center gap-2">
+                              <Input
+                                value={editingValue}
+                                onChange={(e) =>
+                                  setEditingValue(e.target.value)
+                                }
+                                onKeyDown={handleInlineKeyPress}
+                                className="h-8"
+                                autoFocus
+                              />
+                              <Button size="sm" onClick={saveInlineEdit}>
+                                <Check className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={cancelInlineEdit}
+                              >
+                                <X className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <div
+                              className="flex items-center gap-2 cursor-pointer hover:bg-muted p-1 rounded"
+                              onClick={() =>
+                                startInlineEdit(hero._id, "title", hero.title)
+                              }
+                            >
+                              <CardTitle className="text-lg">
+                                {hero.title}
+                              </CardTitle>
+                              <Edit className="h-3 w-3 text-muted-foreground" />
+                            </div>
+                          )}
+                        </div>
+                        {editingField?.id === hero._id &&
+                        editingField?.field === "subtitle" ? (
+                          <div className="flex items-center gap-2 mt-1">
+                            <Input
+                              value={editingValue}
+                              onChange={(e) => setEditingValue(e.target.value)}
+                              onKeyDown={handleInlineKeyPress}
+                              className="h-8"
+                              autoFocus
+                            />
+                            <Button size="sm" onClick={saveInlineEdit}>
+                              <Check className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={cancelInlineEdit}
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <div
+                            className="cursor-pointer hover:bg-muted p-1 rounded -ml-1"
+                            onClick={() =>
+                              startInlineEdit(
+                                hero._id,
+                                "subtitle",
+                                hero.subtitle || ""
+                              )
+                            }
+                          >
+                            <CardDescription className="flex items-center gap-1">
+                              {hero.subtitle || "Click to add subtitle"}
+                              <Edit className="h-3 w-3 text-muted-foreground" />
+                            </CardDescription>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          checked={hero.isActive}
+                          onCheckedChange={() => handleToggleActive(hero._id)}
+                        />
+                        <span className="text-sm text-muted-foreground">
+                          {hero.isActive ? "Active" : "Inactive"}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      {/* <Button
                     variant="outline"
                     size="sm"
                     onClick={() => setEditingHero(hero)}
@@ -689,77 +837,79 @@ export function HeroSectionManagement() {
                   >
                     <Eye className="h-4 w-4" />
                   </Button> */}
-                  
-                  <Button
-                    variant="outline"
-                    size="sm"
-                      onClick={() => handleDeleteClick(hero)}
-                      disabled={isDeleting === hero._id}
-                      className="text-destructive hover:text-destructive"
-                  >
-                      {isDeleting === hero._id ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
+
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDeleteClick(hero)}
+                        disabled={isDeleting === hero._id}
+                        className="text-destructive hover:text-destructive"
+                      >
+                        {isDeleting === hero._id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <div className="h-20 bg-muted rounded-lg flex items-center justify-center overflow-hidden">
+                      {hero.backgroundImage ? (
+                        <img
+                          src={hero.backgroundImage}
+                          alt={hero.backgroundImageAlt}
+                          className="w-full h-full object-cover"
+                        />
                       ) : (
-                    <Trash2 className="h-4 w-4" />
+                        <div className="text-muted-foreground text-sm">
+                          No background image
+                        </div>
                       )}
-                  </Button>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <div className="h-20 bg-muted rounded-lg flex items-center justify-center overflow-hidden">
-                  {hero.backgroundImage ? (
-                    <img
-                      src={hero.backgroundImage}
-                      alt={hero.backgroundImageAlt}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="text-muted-foreground text-sm">
-                      No background image
                     </div>
-                  )}
-                </div>
-                <div className="space-y-1">
-                  <div>
-                    <Label className="text-sm font-medium">Description</Label>
-                    <div className="text-sm text-muted-foreground">
-                      {hero.description}
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label className="text-sm font-medium">
-                        Primary Button
-                      </Label>
-                      <div className="text-sm text-muted-foreground">
-                        {hero.primaryButtonText} → {hero.primaryButtonLink}
+                    <div className="space-y-1">
+                      <div>
+                        <Label className="text-sm font-medium">
+                          Description
+                        </Label>
+                        <div className="text-sm text-muted-foreground">
+                          {hero.description}
+                        </div>
                       </div>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-medium">
-                        Secondary Button
-                      </Label>
-                      <div className="text-sm text-muted-foreground">
-                        {hero.secondaryButtonText} → {hero.secondaryButtonLink}
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label className="text-sm font-medium">
+                            Primary Button
+                          </Label>
+                          <div className="text-sm text-muted-foreground">
+                            {hero.primaryButtonText} → {hero.primaryButtonLink}
+                          </div>
+                        </div>
+                        <div>
+                          <Label className="text-sm font-medium">
+                            Secondary Button
+                          </Label>
+                          <div className="text-sm text-muted-foreground">
+                            {hero.secondaryButtonText} →{" "}
+                            {hero.secondaryButtonLink}
+                          </div>
+                        </div>
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium">Order</Label>
+                        <div className="text-sm text-muted-foreground">
+                          {hero.order}
+                        </div>
                       </div>
                     </div>
                   </div>
-                  <div>
-                    <Label className="text-sm font-medium">Order</Label>
-                    <div className="text-sm text-muted-foreground">
-                      {hero.order}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          ))
+                </CardContent>
+              </Card>
+            ))
         )}
       </div>
-
 
       <div className="flex justify-end">
         <Button onClick={handleCreateModalOpen}>
@@ -774,7 +924,7 @@ export function HeroSectionManagement() {
           <DialogHeader>
             <DialogTitle>Quick Edit Hero Section</DialogTitle>
           </DialogHeader>
-      {editingHero && (
+          {editingHero && (
             <HeroSectionForm
               hero={editingHero}
               onSave={handleSave}
@@ -794,7 +944,7 @@ export function HeroSectionManagement() {
             <DialogTitle>Create New Hero Section</DialogTitle>
           </DialogHeader>
           <HeroSectionForm
-            key={isCreateModalOpen ? 'create' : 'edit'}
+            key={isCreateModalOpen ? "create" : "edit"}
             onSave={handleSave}
             onCancel={handleCreateModalClose}
             onFileUpload={handleFileUpload}
@@ -805,7 +955,10 @@ export function HeroSectionManagement() {
       </Dialog>
 
       {/* Delete Confirmation Modal */}
-      <Dialog open={deleteConfirmModal.isOpen} onOpenChange={handleDeleteCancel}>
+      <Dialog
+        open={deleteConfirmModal.isOpen}
+        onOpenChange={handleDeleteCancel}
+      >
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -815,8 +968,9 @@ export function HeroSectionManagement() {
           </DialogHeader>
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Are you sure you want to delete <strong>"{deleteConfirmModal.hero?.title}"</strong>? 
-              This action cannot be undone.
+              Are you sure you want to delete{" "}
+              <strong>"{deleteConfirmModal.hero?.title}"</strong>? This action
+              cannot be undone.
             </p>
             {deleteConfirmModal.hero && (
               <div className="p-3 bg-muted rounded-lg">
@@ -827,7 +981,10 @@ export function HeroSectionManagement() {
                     {deleteConfirmModal.hero.subtitle && (
                       <div>Subtitle: {deleteConfirmModal.hero.subtitle}</div>
                     )}
-                    <div>Status: {deleteConfirmModal.hero.isActive ? "Active" : "Inactive"}</div>
+                    <div>
+                      Status:{" "}
+                      {deleteConfirmModal.hero.isActive ? "Active" : "Inactive"}
+                    </div>
                     <div>Order: {deleteConfirmModal.hero.order}</div>
                   </div>
                 </div>
@@ -957,27 +1114,39 @@ function HeroSectionForm({
     }
 
     if (formData.primaryButtonText && formData.primaryButtonText.length > 50) {
-      newErrors.primaryButtonText = "Primary button text must be less than 50 characters";
+      newErrors.primaryButtonText =
+        "Primary button text must be less than 50 characters";
     }
 
     if (formData.primaryButtonText && !formData.primaryButtonLink) {
-      newErrors.primaryButtonLink = "Primary button link is required when button text is provided";
+      newErrors.primaryButtonLink =
+        "Primary button link is required when button text is provided";
     }
 
     if (formData.primaryButtonLink && formData.primaryButtonLink.length > 500) {
-      newErrors.primaryButtonLink = "Primary button link must be less than 500 characters";
+      newErrors.primaryButtonLink =
+        "Primary button link must be less than 500 characters";
     }
 
-    if (formData.secondaryButtonText && formData.secondaryButtonText.length > 50) {
-      newErrors.secondaryButtonText = "Secondary button text must be less than 50 characters";
+    if (
+      formData.secondaryButtonText &&
+      formData.secondaryButtonText.length > 50
+    ) {
+      newErrors.secondaryButtonText =
+        "Secondary button text must be less than 50 characters";
     }
 
     if (formData.secondaryButtonText && !formData.secondaryButtonLink) {
-      newErrors.secondaryButtonLink = "Secondary button link is required when button text is provided";
+      newErrors.secondaryButtonLink =
+        "Secondary button link is required when button text is provided";
     }
 
-    if (formData.secondaryButtonLink && formData.secondaryButtonLink.length > 500) {
-      newErrors.secondaryButtonLink = "Secondary button link must be less than 500 characters";
+    if (
+      formData.secondaryButtonLink &&
+      formData.secondaryButtonLink.length > 500
+    ) {
+      newErrors.secondaryButtonLink =
+        "Secondary button link must be less than 500 characters";
     }
 
     if (formData.backgroundImage && formData.backgroundImage.trim()) {
@@ -989,12 +1158,21 @@ function HeroSectionForm({
       }
     }
 
-    if (formData.backgroundImage && formData.backgroundImage.trim() && !formData.backgroundImageAlt?.trim()) {
-      newErrors.backgroundImageAlt = "Alt text is required when background image is provided";
+    if (
+      formData.backgroundImage &&
+      formData.backgroundImage.trim() &&
+      !formData.backgroundImageAlt?.trim()
+    ) {
+      newErrors.backgroundImageAlt =
+        "Alt text is required when background image is provided";
     }
 
-    if (formData.backgroundImageAlt && formData.backgroundImageAlt.length > 200) {
-      newErrors.backgroundImageAlt = "Background image alt text must be less than 200 characters";
+    if (
+      formData.backgroundImageAlt &&
+      formData.backgroundImageAlt.length > 200
+    ) {
+      newErrors.backgroundImageAlt =
+        "Background image alt text must be less than 200 characters";
     }
 
     setErrors(newErrors);
@@ -1004,9 +1182,9 @@ function HeroSectionForm({
   // Real-time validation
   const validateField = (field: string, value: string) => {
     const newErrors = { ...errors };
-    
+
     switch (field) {
-      case 'title':
+      case "title":
         if (!value.trim()) {
           newErrors.title = "Title is required";
         } else if (value.length > 200) {
@@ -1015,53 +1193,60 @@ function HeroSectionForm({
           delete newErrors.title;
         }
         break;
-      case 'subtitle':
+      case "subtitle":
         if (value && value.length > 200) {
           newErrors.subtitle = "Subtitle must be less than 200 characters";
         } else {
           delete newErrors.subtitle;
         }
         break;
-      case 'description':
+      case "description":
         if (value && value.length > 1000) {
-          newErrors.description = "Description must be less than 1000 characters";
+          newErrors.description =
+            "Description must be less than 1000 characters";
         } else {
           delete newErrors.description;
         }
         break;
-      case 'primaryButtonText':
+      case "primaryButtonText":
         if (value && value.length > 50) {
-          newErrors.primaryButtonText = "Primary button text must be less than 50 characters";
+          newErrors.primaryButtonText =
+            "Primary button text must be less than 50 characters";
         } else {
           delete newErrors.primaryButtonText;
         }
         break;
-      case 'primaryButtonLink':
+      case "primaryButtonLink":
         if (formData.primaryButtonText && !value.trim()) {
-          newErrors.primaryButtonLink = "Primary button link is required when button text is provided";
+          newErrors.primaryButtonLink =
+            "Primary button link is required when button text is provided";
         } else if (value && value.length > 500) {
-          newErrors.primaryButtonLink = "Primary button link must be less than 500 characters";
+          newErrors.primaryButtonLink =
+            "Primary button link must be less than 500 characters";
         } else {
           delete newErrors.primaryButtonLink;
         }
         break;
-      case 'secondaryButtonText':
+      case "secondaryButtonText":
         if (value && value.length > 50) {
-          newErrors.secondaryButtonText = "Secondary button text must be less than 50 characters";
+          newErrors.secondaryButtonText =
+            "Secondary button text must be less than 50 characters";
         } else {
           delete newErrors.secondaryButtonText;
         }
         break;
-      case 'secondaryButtonLink':
+      case "secondaryButtonLink":
         if (formData.secondaryButtonText && !value.trim()) {
-          newErrors.secondaryButtonLink = "Secondary button link is required when button text is provided";
+          newErrors.secondaryButtonLink =
+            "Secondary button link is required when button text is provided";
         } else if (value && value.length > 500) {
-          newErrors.secondaryButtonLink = "Secondary button link must be less than 500 characters";
+          newErrors.secondaryButtonLink =
+            "Secondary button link must be less than 500 characters";
         } else {
           delete newErrors.secondaryButtonLink;
         }
         break;
-      case 'backgroundImage':
+      case "backgroundImage":
         if (value && value.trim()) {
           try {
             new URL(value);
@@ -1073,23 +1258,29 @@ function HeroSectionForm({
           delete newErrors.backgroundImage;
         }
         break;
-      case 'backgroundImageAlt':
-        if (formData.backgroundImage && formData.backgroundImage.trim() && !value.trim()) {
-          newErrors.backgroundImageAlt = "Alt text is required when background image is provided";
+      case "backgroundImageAlt":
+        if (
+          formData.backgroundImage &&
+          formData.backgroundImage.trim() &&
+          !value.trim()
+        ) {
+          newErrors.backgroundImageAlt =
+            "Alt text is required when background image is provided";
         } else if (value && value.length > 200) {
-          newErrors.backgroundImageAlt = "Background image alt text must be less than 200 characters";
+          newErrors.backgroundImageAlt =
+            "Background image alt text must be less than 200 characters";
         } else {
           delete newErrors.backgroundImageAlt;
         }
         break;
     }
-    
+
     setErrors(newErrors);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       toast.error("Please fix the form errors before submitting");
       return;
@@ -1112,20 +1303,20 @@ function HeroSectionForm({
       };
 
       await onSave(cleanedFormData);
-      
+
       // Only reset form if this is a new hero section (not editing)
-    if (!hero) {
-      setFormData({
-        title: "",
-        subtitle: "",
-        description: "",
-        primaryButtonText: "",
-        primaryButtonLink: "",
-        secondaryButtonText: "",
-        secondaryButtonLink: "",
-        backgroundImage: "",
-        backgroundImageAlt: "",
-        isActive: true,
+      if (!hero) {
+        setFormData({
+          title: "",
+          subtitle: "",
+          description: "",
+          primaryButtonText: "",
+          primaryButtonLink: "",
+          secondaryButtonText: "",
+          secondaryButtonLink: "",
+          backgroundImage: "",
+          backgroundImageAlt: "",
+          isActive: true,
           order: 1,
         });
         setErrors({});
@@ -1144,18 +1335,18 @@ function HeroSectionForm({
         // Show preview immediately
         const previewUrl = URL.createObjectURL(file);
         setImagePreview(previewUrl);
-        
+
         // Upload file
-      const url = await onFileUpload(file);
-      setFormData((prev) => ({ ...prev, backgroundImage: url }));
-        
+        const url = await onFileUpload(file);
+        setFormData((prev) => ({ ...prev, backgroundImage: url }));
+
         // Clear preview and use uploaded URL
         setImagePreview(null);
       } catch (error) {
         // Clear preview on error
         setImagePreview(null);
         // Reset file input
-        e.target.value = '';
+        e.target.value = "";
       }
     }
   };
@@ -1171,7 +1362,7 @@ function HeroSectionForm({
             onChange={(e) => {
               const value = e.target.value;
               setFormData((prev) => ({ ...prev, title: value }));
-              validateField('title', value);
+              validateField("title", value);
             }}
             placeholder="Enter hero title"
             className={errors.title ? "border-red-500" : ""}
@@ -1188,7 +1379,7 @@ function HeroSectionForm({
             onChange={(e) => {
               const value = e.target.value;
               setFormData((prev) => ({ ...prev, subtitle: value }));
-              validateField('subtitle', value);
+              validateField("subtitle", value);
             }}
             placeholder="Enter hero subtitle"
             className={errors.subtitle ? "border-red-500" : ""}
@@ -1207,7 +1398,7 @@ function HeroSectionForm({
           onChange={(e) => {
             const value = e.target.value;
             setFormData((prev) => ({ ...prev, description: value }));
-            validateField('description', value);
+            validateField("description", value);
           }}
           placeholder="Enter hero description"
           rows={3}
@@ -1227,7 +1418,7 @@ function HeroSectionForm({
             onChange={(e) => {
               const value = e.target.value;
               setFormData((prev) => ({ ...prev, primaryButtonText: value }));
-              validateField('primaryButtonText', value);
+              validateField("primaryButtonText", value);
             }}
             placeholder="e.g., Shop Now"
             className={errors.primaryButtonText ? "border-red-500" : ""}
@@ -1244,7 +1435,7 @@ function HeroSectionForm({
             onChange={(e) => {
               const value = e.target.value;
               setFormData((prev) => ({ ...prev, primaryButtonLink: value }));
-              validateField('primaryButtonLink', value);
+              validateField("primaryButtonLink", value);
             }}
             placeholder="e.g., /shop"
             className={errors.primaryButtonLink ? "border-red-500" : ""}
@@ -1264,7 +1455,7 @@ function HeroSectionForm({
             onChange={(e) => {
               const value = e.target.value;
               setFormData((prev) => ({ ...prev, secondaryButtonText: value }));
-              validateField('secondaryButtonText', value);
+              validateField("secondaryButtonText", value);
             }}
             placeholder="e.g., Learn More"
             className={errors.secondaryButtonText ? "border-red-500" : ""}
@@ -1281,7 +1472,7 @@ function HeroSectionForm({
             onChange={(e) => {
               const value = e.target.value;
               setFormData((prev) => ({ ...prev, secondaryButtonLink: value }));
-              validateField('secondaryButtonLink', value);
+              validateField("secondaryButtonLink", value);
             }}
             placeholder="e.g., /about"
             className={errors.secondaryButtonLink ? "border-red-500" : ""}
@@ -1300,7 +1491,7 @@ function HeroSectionForm({
           onChange={(e) => {
             const value = e.target.value;
             setFormData((prev) => ({ ...prev, backgroundImageAlt: value }));
-            validateField('backgroundImageAlt', value);
+            validateField("backgroundImageAlt", value);
           }}
           placeholder="Enter alt text for accessibility"
           className={errors.backgroundImageAlt ? "border-red-500" : ""}
@@ -1341,11 +1532,13 @@ function HeroSectionForm({
               variant="outline"
               size="sm"
               onClick={() => {
-                setFormData(prev => ({ ...prev, backgroundImage: "" }));
+                setFormData((prev) => ({ ...prev, backgroundImage: "" }));
                 setImagePreview(null);
                 // Reset file input
-                const fileInput = document.getElementById('file') as HTMLInputElement;
-                if (fileInput) fileInput.value = '';
+                const fileInput = document.getElementById(
+                  "file"
+                ) as HTMLInputElement;
+                if (fileInput) fileInput.value = "";
               }}
             >
               Clear Image
@@ -1369,7 +1562,7 @@ function HeroSectionForm({
           onChange={(e) => {
             const value = e.target.value;
             setFormData((prev) => ({ ...prev, backgroundImage: value }));
-            validateField('backgroundImage', value);
+            validateField("backgroundImage", value);
           }}
           placeholder="Enter background image URL"
           className={errors.backgroundImage ? "border-red-500" : ""}
@@ -1388,20 +1581,23 @@ function HeroSectionForm({
             min="1"
             value={formData.order}
             onChange={(e) =>
-              setFormData((prev) => ({ ...prev, order: parseInt(e.target.value) || 1 }))
+              setFormData((prev) => ({
+                ...prev,
+                order: parseInt(e.target.value) || 1,
+              }))
             }
             placeholder="Enter order number"
           />
         </div>
-      <div className="flex items-center space-x-2">
-        <Switch
-          id="isActive"
-          checked={formData.isActive}
-          onCheckedChange={(checked) =>
-            setFormData((prev) => ({ ...prev, isActive: checked }))
-          }
-        />
-        <Label htmlFor="isActive">Active</Label>
+        <div className="flex items-center space-x-2">
+          <Switch
+            id="isActive"
+            checked={formData.isActive}
+            onCheckedChange={(checked) =>
+              setFormData((prev) => ({ ...prev, isActive: checked }))
+            }
+          />
+          <Label htmlFor="isActive">Active</Label>
         </div>
       </div>
 
@@ -1417,28 +1613,38 @@ function HeroSectionForm({
           )}
         </div>
         <div className="text-sm text-muted-foreground">
-          {formData.title ? `${formData.title.length} characters` : "0 characters"}
+          {formData.title
+            ? `${formData.title.length} characters`
+            : "0 characters"}
         </div>
       </div>
 
       <div className="flex gap-2">
-        <Button 
-          type="submit" 
+        <Button
+          type="submit"
           disabled={isUploading || isSaving || Object.keys(errors).length > 0}
           className="flex-1"
         >
           {isSaving ? (
             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
           ) : (
-          <Save className="h-4 w-4 mr-2" />
+            <Save className="h-4 w-4 mr-2" />
           )}
-          {isSaving 
-            ? (hero ? "Updating..." : "Adding...") 
-            : (hero ? "Update Hero Section" : "Add Hero Section")
-          }
+          {isSaving
+            ? hero
+              ? "Updating..."
+              : "Adding..."
+            : hero
+              ? "Update Hero Section"
+              : "Add Hero Section"}
         </Button>
         {onCancel && (
-          <Button type="button" variant="outline" onClick={onCancel} disabled={isSaving}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onCancel}
+            disabled={isSaving}
+          >
             Cancel
           </Button>
         )}

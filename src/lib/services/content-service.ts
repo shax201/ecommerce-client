@@ -23,6 +23,7 @@ import {
   deleteClientLogo,
   reorderClientLogos,
   getFooter,
+  getFooterISR,
   updateFooter,
   updateContactInfo,
   addFooterSection,
@@ -55,8 +56,8 @@ import {
   type NavbarFormData,
   type NavbarMenuFormData,
   type NavbarMenuItemFormData,
-  type ContentResponse
-} from '@/actions/content';
+  type ContentResponse,
+} from "@/actions/content";
 
 // ===== LOGO SERVICE =====
 export class LogoService {
@@ -76,7 +77,10 @@ export class LogoService {
     return await getLogoById(id);
   }
 
-  static async update(id: string, data: Partial<LogoFormData>): Promise<ContentResponse> {
+  static async update(
+    id: string,
+    data: Partial<LogoFormData>
+  ): Promise<ContentResponse> {
     return await updateLogo(id, data);
   }
 
@@ -91,7 +95,9 @@ export class HeroSectionService {
     return await createHeroSection(data);
   }
 
-  static async getAll(filters: HeroSectionFilters = {}): Promise<ContentResponse> {
+  static async getAll(
+    filters: HeroSectionFilters = {}
+  ): Promise<ContentResponse> {
     return await getHeroSections(filters);
   }
 
@@ -103,7 +109,10 @@ export class HeroSectionService {
     return await getHeroSectionById(id);
   }
 
-  static async update(id: string, data: Partial<HeroSectionFormData>): Promise<ContentResponse> {
+  static async update(
+    id: string,
+    data: Partial<HeroSectionFormData>
+  ): Promise<ContentResponse> {
     return await updateHeroSection(id, data);
   }
 
@@ -122,7 +131,9 @@ export class ClientLogoService {
     return await createClientLogo(data);
   }
 
-  static async getAll(filters: ClientLogoFilters = {}): Promise<ContentResponse> {
+  static async getAll(
+    filters: ClientLogoFilters = {}
+  ): Promise<ContentResponse> {
     return await getClientLogos(filters);
   }
 
@@ -134,7 +145,10 @@ export class ClientLogoService {
     return await getClientLogoById(id);
   }
 
-  static async update(id: string, data: Partial<ClientLogoFormData>): Promise<ContentResponse> {
+  static async update(
+    id: string,
+    data: Partial<ClientLogoFormData>
+  ): Promise<ContentResponse> {
     return await updateClientLogo(id, data);
   }
 
@@ -150,23 +164,30 @@ export class ClientLogoService {
 // ===== FOOTER SERVICE =====
 export class FooterService {
   static async get(): Promise<ContentResponse> {
-    return await getFooter();
+    return await getFooterISR();
   }
 
   static async update(data: FooterFormData): Promise<ContentResponse> {
     return await updateFooter(data);
   }
 
-  static async updateContactInfo(data: ContactInfoFormData): Promise<ContentResponse> {
+  static async updateContactInfo(
+    data: ContactInfoFormData
+  ): Promise<ContentResponse> {
     return await updateContactInfo(data);
   }
 
   // Footer Sections
-  static async addSection(data: FooterSectionFormData): Promise<ContentResponse> {
+  static async addSection(
+    data: FooterSectionFormData
+  ): Promise<ContentResponse> {
     return await addFooterSection(data);
   }
 
-  static async updateSection(sectionId: string, data: Partial<FooterSectionFormData>): Promise<ContentResponse> {
+  static async updateSection(
+    sectionId: string,
+    data: Partial<FooterSectionFormData>
+  ): Promise<ContentResponse> {
     return await updateFooterSection(sectionId, data);
   }
 
@@ -175,15 +196,25 @@ export class FooterService {
   }
 
   // Footer Links
-  static async addLink(sectionId: string, data: FooterLinkFormData): Promise<ContentResponse> {
+  static async addLink(
+    sectionId: string,
+    data: FooterLinkFormData
+  ): Promise<ContentResponse> {
     return await addFooterLink(sectionId, data);
   }
 
-  static async updateLink(sectionId: string, linkId: string, data: Partial<FooterLinkFormData>): Promise<ContentResponse> {
+  static async updateLink(
+    sectionId: string,
+    linkId: string,
+    data: Partial<FooterLinkFormData>
+  ): Promise<ContentResponse> {
     return await updateFooterLink(sectionId, linkId, data);
   }
 
-  static async deleteLink(sectionId: string, linkId: string): Promise<ContentResponse> {
+  static async deleteLink(
+    sectionId: string,
+    linkId: string
+  ): Promise<ContentResponse> {
     return await deleteFooterLink(sectionId, linkId);
   }
 }
@@ -205,7 +236,10 @@ export class NavbarMenuService {
     return await addNavbarMenu(data);
   }
 
-  static async update(menuId: number, data: Partial<NavbarMenuFormData>): Promise<ContentResponse> {
+  static async update(
+    menuId: number,
+    data: Partial<NavbarMenuFormData>
+  ): Promise<ContentResponse> {
     return await updateNavbarMenu(menuId, data);
   }
 
@@ -220,19 +254,32 @@ export class NavbarMenuService {
 
 // ===== NAVBAR MENU ITEM SERVICE =====
 export class NavbarMenuItemService {
-  static async create(menuId: number, data: NavbarMenuItemFormData): Promise<ContentResponse> {
+  static async create(
+    menuId: number,
+    data: NavbarMenuItemFormData
+  ): Promise<ContentResponse> {
     return await addNavbarMenuItem(menuId, data);
   }
 
-  static async update(menuId: number, menuItemId: number, data: Partial<NavbarMenuItemFormData>): Promise<ContentResponse> {
+  static async update(
+    menuId: number,
+    menuItemId: number,
+    data: Partial<NavbarMenuItemFormData>
+  ): Promise<ContentResponse> {
     return await updateNavbarMenuItem(menuId, menuItemId, data);
   }
 
-  static async delete(menuId: number, menuItemId: number): Promise<ContentResponse> {
+  static async delete(
+    menuId: number,
+    menuItemId: number
+  ): Promise<ContentResponse> {
     return await deleteNavbarMenuItem(menuId, menuItemId);
   }
 
-  static async reorder(menuId: number, updates: ReorderRequest[]): Promise<ContentResponse> {
+  static async reorder(
+    menuId: number,
+    updates: ReorderRequest[]
+  ): Promise<ContentResponse> {
     return await reorderNavbarMenuItems(menuId, updates);
   }
 }
@@ -253,5 +300,5 @@ export type {
   NavbarFormData,
   NavbarMenuFormData,
   NavbarMenuItemFormData,
-  ContentResponse
-} from '@/actions/content';
+  ContentResponse,
+} from "@/actions/content";
