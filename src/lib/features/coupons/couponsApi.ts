@@ -1,4 +1,5 @@
 import { apiSlice } from "../api/apiSlice";
+import type { Api } from "@reduxjs/toolkit/query";
 import {
   Coupon,
   CouponCreateData,
@@ -9,7 +10,6 @@ import {
   CouponApplyResponse,
   CouponListResponse,
 } from "@/types/coupon.types";
-import { prepareCouponDataForApi } from "@/lib/utils/coupon-utils";
 
 // ===== RESPONSE TYPES =====
 
@@ -82,7 +82,7 @@ export const couponsApi = apiSlice.injectEndpoints({
       query: (couponData) => ({
         url: "/coupons",
         method: "POST",
-        body: prepareCouponDataForApi(couponData),
+        body: couponData,
       }),
       invalidatesTags: ["Coupon"],
     }),
@@ -92,7 +92,7 @@ export const couponsApi = apiSlice.injectEndpoints({
       query: ({ couponId, data }) => ({
         url: `/coupons/${couponId}`,
         method: "PUT",
-        body: prepareCouponDataForApi(data),
+        body: data,
       }),
       invalidatesTags: (result, error, { couponId }) => [
         { type: "Coupon", id: couponId },
@@ -271,22 +271,23 @@ export const couponsApi = apiSlice.injectEndpoints({
       invalidatesTags: ["Coupon"],
     }),
   }),
-});
+}) as any;
 
 // ===== EXPORTED HOOKS =====
+// Export hooks individually to avoid circular reference
+export const useGetCouponsQuery = couponsApi.useGetCouponsQuery;
+export const useGetCouponByIdQuery = couponsApi.useGetCouponByIdQuery;
+export const useGetActiveCouponsQuery = couponsApi.useGetActiveCouponsQuery;
+export const useCreateCouponMutation = couponsApi.useCreateCouponMutation;
+export const useUpdateCouponMutation = couponsApi.useUpdateCouponMutation;
+export const useDeleteCouponMutation = couponsApi.useDeleteCouponMutation;
+export const useActivateCouponMutation = couponsApi.useActivateCouponMutation;
+export const useDeactivateCouponMutation = couponsApi.useDeactivateCouponMutation;
+export const useValidateCouponMutation = couponsApi.useValidateCouponMutation;
+export const useApplyCouponMutation = couponsApi.useApplyCouponMutation;
+export const useBulkActivateCouponsMutation = couponsApi.useBulkActivateCouponsMutation;
+export const useBulkDeactivateCouponsMutation = couponsApi.useBulkDeactivateCouponsMutation;
+export const useBulkDeleteCouponsMutation = couponsApi.useBulkDeleteCouponsMutation;
 
-export const {
-  useGetCouponsQuery,
-  useGetCouponByIdQuery,
-  useGetActiveCouponsQuery,
-  useCreateCouponMutation,
-  useUpdateCouponMutation,
-  useDeleteCouponMutation,
-  useActivateCouponMutation,
-  useDeactivateCouponMutation,
-  useValidateCouponMutation,
-  useApplyCouponMutation,
-  useBulkActivateCouponsMutation,
-  useBulkDeactivateCouponsMutation,
-  useBulkDeleteCouponsMutation,
-} = couponsApi;
+// Type assertion to fix circular reference
+export type CouponsApi = typeof couponsApi;

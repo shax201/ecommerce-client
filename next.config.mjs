@@ -15,8 +15,6 @@ const nextConfig = {
   },
   eslint: {
     ignoreDuringBuilds: true,
-  },
-  eslint: {
     dirs: ["pages", "components", "lib", "app"],
   },
   // ISR Configuration

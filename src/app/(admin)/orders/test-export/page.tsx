@@ -9,8 +9,10 @@ const mockOrders: OrderData[] = [
     _id: "1",
     orderNumber: "ORD-001",
     date: "2024-01-15T10:30:00Z",
+    trackingSteps: ["ordered", "shipped", "delivered"],
     currentStatus: "delivered",
     total: 150.00,
+    currency: "USD",
     itemCount: 2,
     trackingNumber: "TRK-001",
     products: [
@@ -27,15 +29,25 @@ const mockOrders: OrderData[] = [
       phone: "555-0123",
       email: "john@example.com"
     },
+    clientID: {
+      _id: "client1",
+      firstName: "John",
+      lastName: "Doe",
+      email: "john@example.com"
+    },
     paymentMethod: "credit_card",
-    paymentStatus: true
+    paymentStatus: true,
+    notes: "Test order",
+    estimatedDeliveryDate: "2024-01-20T00:00:00Z"
   },
   {
     _id: "2",
     orderNumber: "ORD-002",
     date: "2024-01-16T14:20:00Z",
+    trackingSteps: ["ordered", "shipped"],
     currentStatus: "shipped",
     total: 89.99,
+    currency: "USD",
     itemCount: 1,
     trackingNumber: "TRK-002",
     products: [
@@ -52,8 +64,16 @@ const mockOrders: OrderData[] = [
       phone: "555-0456",
       email: "jane@example.com"
     },
+    clientID: {
+      _id: "client2",
+      firstName: "Jane",
+      lastName: "Smith",
+      email: "jane@example.com"
+    },
     paymentMethod: "paypal",
-    paymentStatus: true
+    paymentStatus: true,
+    notes: "Test order 2",
+    estimatedDeliveryDate: "2024-01-22T00:00:00Z"
   }
 ];
 

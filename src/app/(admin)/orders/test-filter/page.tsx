@@ -9,9 +9,11 @@ const mockOrders: OrderData[] = [
     _id: "1",
     orderNumber: "ORD-001",
     date: "2024-01-15T10:30:00Z",
+    trackingSteps: ["ordered", "shipped", "delivered"],
     currentStatus: "delivered",
     status: "delivered", // Legacy field
     total: 150.00,
+    currency: "USD",
     itemCount: 2,
     trackingNumber: "TRK-001",
     products: [
@@ -28,16 +30,26 @@ const mockOrders: OrderData[] = [
       phone: "555-0123",
       email: "john@example.com"
     },
+    clientID: {
+      _id: "client1",
+      firstName: "John",
+      lastName: "Doe",
+      email: "john@example.com"
+    },
     paymentMethod: "credit_card",
-    paymentStatus: true
+    paymentStatus: true,
+    notes: "Test order",
+    estimatedDeliveryDate: "2024-01-20T00:00:00Z"
   },
   {
     _id: "2",
     orderNumber: "ORD-002",
     date: "2024-01-16T14:20:00Z",
+    trackingSteps: ["ordered", "shipped"],
     currentStatus: "shipped",
     status: "shipped", // Legacy field
     total: 89.99,
+    currency: "USD",
     itemCount: 1,
     trackingNumber: "TRK-002",
     products: [
@@ -54,16 +66,26 @@ const mockOrders: OrderData[] = [
       phone: "555-0456",
       email: "jane@example.com"
     },
+    clientID: {
+      _id: "client2",
+      firstName: "Jane",
+      lastName: "Smith",
+      email: "jane@example.com"
+    },
     paymentMethod: "paypal",
-    paymentStatus: true
+    paymentStatus: true,
+    notes: "Test order 2",
+    estimatedDeliveryDate: "2024-01-22T00:00:00Z"
   },
   {
     _id: "3",
     orderNumber: "ORD-003",
     date: "2024-01-17T09:15:00Z",
+    trackingSteps: ["ordered"],
     currentStatus: "pending",
     status: "pending", // Legacy field
     total: 200.00,
+    currency: "USD",
     itemCount: 3,
     trackingNumber: "TRK-003",
     products: [
@@ -80,16 +102,26 @@ const mockOrders: OrderData[] = [
       phone: "555-0789",
       email: "bob@example.com"
     },
+    clientID: {
+      _id: "client3",
+      firstName: "Bob",
+      lastName: "Johnson",
+      email: "bob@example.com"
+    },
     paymentMethod: "stripe",
-    paymentStatus: false
+    paymentStatus: false,
+    notes: "Test order 3",
+    estimatedDeliveryDate: "2024-01-25T00:00:00Z"
   },
   {
     _id: "4",
     orderNumber: "ORD-004",
     date: "2024-01-18T16:45:00Z",
+    trackingSteps: ["ordered", "processing"],
     currentStatus: "processing",
     status: "processing", // Legacy field
     total: 75.50,
+    currency: "USD",
     itemCount: 1,
     trackingNumber: "TRK-004",
     products: [
@@ -106,8 +138,16 @@ const mockOrders: OrderData[] = [
       phone: "555-0321",
       email: "alice@example.com"
     },
+    clientID: {
+      _id: "client4",
+      firstName: "Alice",
+      lastName: "Brown",
+      email: "alice@example.com"
+    },
     paymentMethod: "credit_card",
-    paymentStatus: true
+    paymentStatus: true,
+    notes: "Test order 4",
+    estimatedDeliveryDate: "2024-01-26T00:00:00Z"
   }
 ];
 

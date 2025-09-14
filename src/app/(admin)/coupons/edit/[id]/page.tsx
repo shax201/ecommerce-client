@@ -103,7 +103,7 @@ export default function EditCouponPage() {
   // Load coupon data when coupons data is available
   useEffect(() => {
     if (couponsData?.data?.coupons && couponId) {
-      const foundCoupon = couponsData.data.coupons.find(c => c._id === couponId);
+      const foundCoupon = couponsData.data.coupons.find((c: Coupon) => c._id === couponId);
       if (foundCoupon) {
         setCoupon(foundCoupon);
         
