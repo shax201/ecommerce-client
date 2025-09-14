@@ -125,6 +125,10 @@ export class HeroSectionService {
   }
 }
 
+const getBackendUrl = () => {
+  return process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000/api/v1";
+};
+
 // ===== CLIENT LOGO SERVICE =====
 export class ClientLogoService {
   static async create(data: ClientLogoFormData): Promise<ContentResponse> {
@@ -164,7 +168,37 @@ export class ClientLogoService {
 // ===== FOOTER SERVICE =====
 export class FooterService {
   static async get(): Promise<ContentResponse> {
-    return await getFooterISR();
+    try {
+      const response = await fetch(`${getBackendUrl()}/content/footer`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        return {
+          success: true,
+          message: "Footer data fetched successfully",
+          data: data.data,
+        };
+      } else {
+        return {
+          success: false,
+          message: data.message || "Failed to fetch footer data",
+          data: null,
+        };
+      }
+    } catch (error) {
+      console.error("Error fetching footer data:", error);
+      return {
+        success: false,
+        message: "Network error: Failed to fetch footer data",
+        data: null,
+      };
+    }
   }
 
   static async update(data: FooterFormData): Promise<ContentResponse> {

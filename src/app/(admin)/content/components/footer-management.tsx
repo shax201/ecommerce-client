@@ -103,10 +103,12 @@ export function FooterManagement({
     dataSource,
     performanceMetrics,
     refresh,
+    loadFooter,
   } = useFooterManagementISR({ footerData: initialFooterData });
 
   const [footerData, setFooterData] = useState<FooterData | null>(null);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
+  const [isInitialLoading, setIsInitialLoading] = useState(!initialFooterData && !isrFooter);
 
   // Modal states
   const [sectionModal, setSectionModal] = useState<{
@@ -154,9 +156,16 @@ export function FooterManagement({
     item: null,
   });
 
-  // Load footer data on component mount and when ISR data changes
+  // Load footer data on component mount
   useEffect(() => {
-    if (isrFooter) {
+    if (!initialFooterData && !isrFooter && !footerData) {
+      loadFooterData();
+    }
+  }, []); // Run only on mount
+
+  // Update footer data when ISR data changes
+  useEffect(() => {
+    if (isrFooter && !footerData) {
       // Use ISR data if available
       const footer = isrFooter;
       setFooterData({
@@ -185,11 +194,8 @@ export function FooterManagement({
         createdAt: footer.createdAt,
         updatedAt: footer.updatedAt,
       });
-    } else {
-      // Fallback to client-side fetching if no ISR data
-      loadFooterData();
     }
-  }, [isrFooter]);
+  }, [isrFooter, footerData]);
 
   // Debug logging (only in development)
   if (process.env.NODE_ENV === "development") {
@@ -205,6 +211,7 @@ export function FooterManagement({
 
   const loadFooterData = async () => {
     try {
+      setIsInitialLoading(true);
       const response = await FooterService.get();
       if (response.success && response.data) {
         const footer = response.data;
@@ -248,7 +255,7 @@ export function FooterManagement({
       console.error("Error loading footer data:", error);
       toast.error("Failed to load footer data");
     } finally {
-      // Loading state is managed by the ISR hook
+      setIsInitialLoading(false);
     }
   };
 
@@ -467,7 +474,7 @@ export function FooterManagement({
     }
   };
 
-  if (isLoading) {
+  if (isLoading || isInitialLoading) {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="flex items-center gap-2">
@@ -505,10 +512,10 @@ export function FooterManagement({
           variant="outline"
           size="sm"
           onClick={loadFooterData}
-          disabled={isLoading}
+          disabled={isLoading || isInitialLoading}
         >
           <RefreshCw
-            className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`}
+            className={`h-4 w-4 mr-2 ${(isLoading || isInitialLoading) ? "animate-spin" : ""}`}
           />
           Refresh
         </Button>

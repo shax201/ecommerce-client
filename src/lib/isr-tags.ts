@@ -5,6 +5,12 @@ export const ISR_TAGS = {
   NEW_ARRIVALS: "new-arrivals",
   TOP_SELLING: "top-selling",
   COMPANY_SETTINGS: "company-settings",
+  COUPONS: "coupons",
+  ORDERS: "orders",
+  USER_ORDERS: "user-orders",
+  ORDER_ANALYTICS: "order-analytics",
+  ORDER_TRACKING: "order-tracking",
+  SHIPPING_ADDRESSES: "shipping-addresses",
 } as const;
 
 export const CONTENT_ISR_TAGS = {

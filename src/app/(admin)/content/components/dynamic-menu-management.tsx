@@ -390,16 +390,6 @@ export function DynamicMenuManagement({
     }
   }, [isrMenus]);
 
-  // Debug logging (only in development)
-  if (process.env.NODE_ENV === "development") {
-    console.log("🔍 DynamicMenuManagement ISR Debug:", {
-      loading,
-      error,
-      dataSource,
-      performanceMetrics,
-      menusCount: menus.length,
-    });
-  }
 
   // Menu handlers
   const handleCreateMenu = async () => {

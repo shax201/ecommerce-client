@@ -93,6 +93,7 @@ export async function revalidateAll() {
     await revalidateProducts();
     await revalidateContent();
     await revalidateCompanySettings();
+    await revalidateCoupons();
 
     // Revalidate key paths
     await revalidateHomePage();
@@ -303,5 +304,131 @@ export async function handleDynamicMenusUpdate() {
   } catch (error) {
     console.error("❌ Error handling dynamic menus update:", error);
     return { success: false, message: "Failed to handle dynamic menus update" };
+  }
+}
+
+// ===== COUPON REVALIDATION FUNCTIONS =====
+
+// Revalidate all coupons
+export async function revalidateCoupons() {
+  "use server";
+  try {
+    revalidateTag(ISR_TAGS.COUPONS);
+    console.log("✅ Coupons cache revalidated");
+    return {
+      success: true,
+      message: "Coupons cache revalidated successfully",
+    };
+  } catch (error) {
+    console.error("❌ Error revalidating coupons:", error);
+    return { success: false, message: "Failed to revalidate coupons cache" };
+  }
+}
+
+export async function revalidateOrders() {
+  "use server";
+  try {
+    revalidateTag(ISR_TAGS.ORDERS);
+    revalidateTag(ISR_TAGS.USER_ORDERS);
+    revalidateTag(ISR_TAGS.ORDER_ANALYTICS);
+    revalidateTag(ISR_TAGS.ORDER_TRACKING);
+    console.log("✅ Orders cache revalidated");
+    return {
+      success: true,
+      message: "Orders cache revalidated successfully",
+    };
+  } catch (error) {
+    console.error("❌ Error revalidating orders:", error);
+    return { success: false, message: "Failed to revalidate orders cache" };
+  }
+}
+
+export async function revalidateOrderAnalytics() {
+  "use server";
+  try {
+    revalidateTag(ISR_TAGS.ORDER_ANALYTICS);
+    console.log("✅ Order analytics cache revalidated");
+    return {
+      success: true,
+      message: "Order analytics cache revalidated successfully",
+    };
+  } catch (error) {
+    console.error("❌ Error revalidating order analytics:", error);
+    return { success: false, message: "Failed to revalidate order analytics cache" };
+  }
+}
+
+// Handle coupon updates
+export async function handleCouponUpdate(couponId?: string) {
+  "use server";
+  try {
+    revalidateTag(ISR_TAGS.COUPONS);
+    if (couponId) {
+      revalidateTag(`coupon-${couponId}`);
+    }
+    console.log("✅ Coupon cache revalidated");
+    return {
+      success: true,
+      message: "Coupon cache revalidated successfully",
+    };
+  } catch (error) {
+    console.error("❌ Error handling coupon update:", error);
+    return { success: false, message: "Failed to handle coupon update" };
+  }
+}
+
+// Handle coupon creation
+export async function handleCouponCreate() {
+  "use server";
+  try {
+    revalidateTag(ISR_TAGS.COUPONS);
+    console.log("✅ Coupons cache revalidated (new coupon created)");
+    return {
+      success: true,
+      message: "Coupons cache revalidated successfully",
+    };
+  } catch (error) {
+    console.error("❌ Error handling coupon creation:", error);
+    return { success: false, message: "Failed to handle coupon creation" };
+  }
+}
+
+// Handle coupon deletion
+export async function handleCouponDelete(couponId?: string) {
+  "use server";
+  try {
+    revalidateTag(ISR_TAGS.COUPONS);
+    if (couponId) {
+      revalidateTag(`coupon-${couponId}`);
+    }
+    console.log("✅ Coupons cache revalidated (coupon deleted)");
+    return {
+      success: true,
+      message: "Coupons cache revalidated successfully",
+    };
+  } catch (error) {
+    console.error("❌ Error handling coupon deletion:", error);
+    return { success: false, message: "Failed to handle coupon deletion" };
+  }
+}
+
+// Handle bulk coupon operations
+export async function handleBulkCouponUpdate(couponIds?: string[]) {
+  "use server";
+  try {
+    revalidateTag(ISR_TAGS.COUPONS);
+    if (couponIds && couponIds.length > 0) {
+      couponIds.forEach(id => {
+        revalidateTag(`coupon-${id}`);
+      });
+    }
+    console.log("✅ Coupons cache revalidated (bulk operation)");
+    return {
+      success: true,
+      message: "Coupons cache revalidated successfully",
+    };
+  } catch (error) {
+    console.error("❌ Error handling bulk coupon update:", error);
+    return { success: false, message: "Failed to handle bulk coupon update" };
   }
 }

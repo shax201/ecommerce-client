@@ -1,6 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useSelector } from "react-redux";
+import { RootState } from "@/lib/store";
+import { useGetUserOrdersQuery, useGetOrderTrackingQuery } from "@/lib/features/orders/ordersApi";
 import {
   Card,
   CardContent,
@@ -37,82 +40,31 @@ import {
   DollarSign,
   MapPin,
   Truck,
+  Loader2,
 } from "lucide-react";
 import { OrderTracker } from "./order-tracker";
 
-// Extended mock data for orders
-const mockOrders = [
-  {
-    id: "ORD-001",
-    date: "2024-01-15",
-    status: "pending",
-    total: 129.99,
-    items: 3,
-    shippingAddress: "123 Main St, New York, NY 10001",
-    estimatedDelivery: "2024-01-20",
-    trackingNumber: "TRK123456789",
-    products: [
-      { name: "Wireless Headphones", quantity: 1, price: 79.99 },
-      { name: "Phone Case", quantity: 2, price: 25.0 },
-    ],
-    trackingSteps: ["ordered", "processing"],
-  },
-  {
-    id: "ORD-002",
-    date: "2024-01-10",
-    status: "completed",
-    total: 89.5,
-    items: 2,
-    shippingAddress: "456 Oak Ave, Los Angeles, CA 90210",
-    deliveredDate: "2024-01-14",
-    trackingNumber: "TRK987654321",
-    products: [
-      { name: "Bluetooth Speaker", quantity: 1, price: 59.99 },
-      { name: "USB Cable", quantity: 1, price: 29.51 },
-    ],
-    trackingSteps: ["ordered", "processing", "shipped", "delivered"],
-  },
-  {
-    id: "ORD-003",
-    date: "2024-01-08",
-    status: "canceled",
-    total: 45.0,
-    items: 1,
-    shippingAddress: "789 Pine St, Chicago, IL 60601",
-    canceledDate: "2024-01-09",
-    cancelReason: "Customer requested cancellation",
-    products: [{ name: "Tablet Stand", quantity: 1, price: 45.0 }],
-    trackingSteps: ["ordered", "canceled"],
-  },
-  {
-    id: "ORD-004",
-    date: "2024-01-05",
-    status: "completed",
-    total: 199.99,
-    items: 1,
-    shippingAddress: "321 Elm St, Miami, FL 33101",
-    deliveredDate: "2024-01-10",
-    trackingNumber: "TRK456789123",
-    products: [{ name: "Smart Watch", quantity: 1, price: 199.99 }],
-    trackingSteps: ["ordered", "processing", "shipped", "delivered"],
-  },
-  {
-    id: "ORD-005",
-    date: "2024-01-03",
-    status: "pending",
-    total: 67.48,
-    items: 3,
-    shippingAddress: "654 Maple Dr, Seattle, WA 98101",
-    estimatedDelivery: "2024-01-18",
-    trackingNumber: "TRK789123456",
-    products: [
-      { name: "Wireless Mouse", quantity: 1, price: 29.99 },
-      { name: "Mousepad", quantity: 1, price: 12.49 },
-      { name: "Screen Cleaner", quantity: 1, price: 25.0 },
-    ],
-    trackingSteps: ["ordered", "processing"],
-  },
-];
+// Helper function to format order data from API
+const formatOrderData = (order: any) => {
+  if (!order) return null;
+  
+  return {
+    id: order._id || order.id || '',
+    orderNumber: order.orderNumber || `ORD-${(order._id || order.id || '').slice(-6)}`,
+    date: order.createdAt || order.date || new Date().toISOString(),
+    status: order.status || 'pending',
+    total: order.totalPrice || order.total || 0,
+    items: order.quantity || 1,
+    shippingAddress: order.shipping?.address || "Address not available",
+    estimatedDelivery: order.estimatedDeliveryDate,
+    trackingNumber: order.trackingNumber,
+    products: Array.isArray(order.products) ? order.products : (Array.isArray(order.productID) ? order.productID : []),
+    trackingSteps: Array.isArray(order.trackingSteps) ? order.trackingSteps : ['ordered'],
+    paymentMethod: order.paymentMethod || 'credit_card',
+    paymentStatus: Boolean(order.paymentStatus),
+    notes: order.notes || '',
+  };
+};
 
 interface OrderManagementProps {
   className?: string;
@@ -122,62 +74,54 @@ export function OrderManagement({ className }: OrderManagementProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [sortBy, setSortBy] = useState("date-desc");
-  const [selectedOrder, setSelectedOrder] = useState<
-    (typeof mockOrders)[0] | null
-  >(null);
-  const [data, setData] = useState<any[]>([]);
+  const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
 
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [orders, setOrders] = useState([]);
+  // Get user from Redux state
+  const { user, isAuthenticated } = useSelector((state: RootState) => state.auth);
+  
+  // Fetch user orders using Redux RTK Query
+  const { 
+    data: ordersData, 
+    isLoading: ordersLoading, 
+    error: ordersError 
+  } = useGetUserOrdersQuery({}, {
+    skip: !isAuthenticated || !user,
+  });
 
-  useEffect(() => {
-    const fetchHistoryData = async () => {
-      try {
-        const token = document.cookie
-          .split("; ")
-          .find((row) => row.startsWith("user-token="))
-          ?.split("=")[1];
+  // Fetch order tracking for selected order
+  const { 
+    data: trackingData,
+    isLoading: trackingLoading 
+  } = useGetOrderTrackingQuery(selectedOrder?.id || "", {
+    skip: !selectedOrder?.id,
+  });
 
-        const res = await fetch("http://localhost:5000/api/v1/order/my", {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        const data = await res.json();
-
-        if (data.success) {
-          setData(data.data.orders);
-        }
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "An error occurred");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchHistoryData();
-  }, []);
+  // Format orders data
+  const data = ordersData?.data?.map(formatOrderData).filter(Boolean) || [];
 
   // Filter and sort orders
   const filteredOrders = data
     .filter((order: any) => {
-      const matchesSearch =
-        order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        order.products.some((product: any) =>
-          product.name.toLowerCase().includes(searchTerm.toLowerCase())
-        );
+      if (!order) return false;
+      
+      const searchTermLower = (searchTerm || "").toLowerCase();
+      const matchesSearch = searchTermLower === "" || (
+        (order.orderNumber || order.id || "").toLowerCase().includes(searchTermLower) ||
+        (order.products || []).some((product: any) =>
+          (product.name || product.title || "").toLowerCase().includes(searchTermLower)
+        )
+      );
       const matchesStatus =
         statusFilter === "all" || order.status === statusFilter;
       return matchesSearch && matchesStatus;
     })
     .sort(
       (
-        a: { date: string | number | Date; total: number },
-        b: { date: string | number | Date; total: number }
+        a: any,
+        b: any
       ) => {
+        if (!a || !b) return 0;
+        
         switch (sortBy) {
           case "date-desc":
             return new Date(b.date).getTime() - new Date(a.date).getTime();
@@ -197,9 +141,13 @@ export function OrderManagement({ className }: OrderManagementProps) {
     switch (status) {
       case "pending":
         return "secondary";
-      case "completed":
+      case "processing":
         return "default";
-      case "canceled":
+      case "shipped":
+        return "default";
+      case "delivered":
+        return "default";
+      case "cancelled":
         return "destructive";
       default:
         return "secondary";
@@ -207,11 +155,14 @@ export function OrderManagement({ className }: OrderManagementProps) {
   };
 
   const getStatusCounts = () => {
+    const validData = data.filter(Boolean) as any[];
     return {
-      all: data.length,
-      pending: data.filter((o) => o.status === "pending").length,
-      completed: data.filter((o) => o.status === "completed").length,
-      canceled: data.filter((o) => o.status === "canceled").length,
+      all: validData.length,
+      pending: validData.filter((o) => o.status === "pending").length,
+      processing: validData.filter((o) => o.status === "processing").length,
+      shipped: validData.filter((o) => o.status === "shipped").length,
+      delivered: validData.filter((o) => o.status === "delivered").length,
+      cancelled: validData.filter((o) => o.status === "cancelled").length,
     };
   };
 
@@ -254,11 +205,17 @@ export function OrderManagement({ className }: OrderManagementProps) {
                 <SelectItem value="pending">
                   Pending ({statusCounts.pending})
                 </SelectItem>
-                <SelectItem value="completed">
-                  Completed ({statusCounts.completed})
+                <SelectItem value="processing">
+                  Processing ({statusCounts.processing})
                 </SelectItem>
-                <SelectItem value="canceled">
-                  Canceled ({statusCounts.canceled})
+                <SelectItem value="shipped">
+                  Shipped ({statusCounts.shipped})
+                </SelectItem>
+                <SelectItem value="delivered">
+                  Delivered ({statusCounts.delivered})
+                </SelectItem>
+                <SelectItem value="cancelled">
+                  Cancelled ({statusCounts.cancelled})
                 </SelectItem>
               </SelectContent>
             </Select>
@@ -283,23 +240,57 @@ export function OrderManagement({ className }: OrderManagementProps) {
         onValueChange={setStatusFilter}
         className="mb-6"
       >
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="all">All ({statusCounts.all})</TabsTrigger>
           <TabsTrigger value="pending">
             Pending ({statusCounts.pending})
           </TabsTrigger>
-          <TabsTrigger value="completed">
-            Completed ({statusCounts.completed})
+          <TabsTrigger value="processing">
+            Processing ({statusCounts.processing})
           </TabsTrigger>
-          <TabsTrigger value="canceled">
-            Canceled ({statusCounts.canceled})
+          <TabsTrigger value="shipped">
+            Shipped ({statusCounts.shipped})
+          </TabsTrigger>
+          <TabsTrigger value="delivered">
+            Delivered ({statusCounts.delivered})
+          </TabsTrigger>
+          <TabsTrigger value="cancelled">
+            Cancelled ({statusCounts.cancelled})
           </TabsTrigger>
         </TabsList>
       </Tabs>
 
       {/* Orders List */}
       <div className="space-y-4">
-        {filteredOrders.length === 0 ? (
+        {ordersLoading ? (
+          <Card>
+            <CardContent className="flex items-center justify-center py-12">
+              <div className="text-center">
+                <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-muted-foreground">
+                  Loading orders...
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  Please wait while we fetch your orders
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        ) : ordersError ? (
+          <Card>
+            <CardContent className="flex items-center justify-center py-12">
+              <div className="text-center">
+                <Package className="h-12 w-12 text-red-500 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-red-500">
+                  Failed to load orders
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  Please try refreshing the page
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        ) : filteredOrders.length === 0 ? (
           <Card>
             <CardContent className="flex items-center justify-center py-12">
               <div className="text-center">
@@ -320,9 +311,9 @@ export function OrderManagement({ className }: OrderManagementProps) {
                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                   <div className="flex-1">
                     <div className="flex items-center gap-4 mb-2">
-                      <h3 className="font-semibold text-lg">{order.id}</h3>
+                      <h3 className="font-semibold text-lg">{order.orderNumber}</h3>
                       <Badge variant={getStatusColor(order.status) as any}>
-                        {order.trackingSteps[order.trackingSteps]}
+                        {order.status}
                       </Badge>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-muted-foreground">
@@ -370,7 +361,7 @@ export function OrderManagement({ className }: OrderManagementProps) {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => setSelectedOrder(mockOrders[0])}
+                          onClick={() => setSelectedOrder(order)}
                         >
                           <Eye className="h-4 w-4 mr-2" />
                           View Details
@@ -378,7 +369,7 @@ export function OrderManagement({ className }: OrderManagementProps) {
                       </DialogTrigger>
                       <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
                         <DialogHeader>
-                          <DialogTitle>Order Details - {order.id}</DialogTitle>
+                          <DialogTitle>Order Details - {order.orderNumber}</DialogTitle>
                           <DialogDescription>
                             Complete information about your order
                           </DialogDescription>
@@ -404,9 +395,9 @@ export function OrderManagement({ className }: OrderManagementProps) {
                                 <div className="space-y-2 text-sm">
                                   <div className="flex justify-between">
                                     <span className="text-muted-foreground">
-                                      Order ID:
+                                      Order Number:
                                     </span>
-                                    <span>{selectedOrder.id}</span>
+                                    <span>{selectedOrder.orderNumber}</span>
                                   </div>
                                   <div className="flex justify-between">
                                     <span className="text-muted-foreground">
@@ -431,6 +422,23 @@ export function OrderManagement({ className }: OrderManagementProps) {
                                     >
                                       {selectedOrder.status}
                                     </Badge>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span className="text-muted-foreground">
+                                      Total:
+                                    </span>
+                                    <span className="font-medium">
+                                      ${selectedOrder.total.toFixed(2)}
+                                    </span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span className="text-muted-foreground">
+                                      Payment:
+                                    </span>
+                                    <span>
+                                      {selectedOrder.paymentMethod?.replace('_', ' ')} 
+                                      {selectedOrder.paymentStatus ? ' ✓' : ' ✗'}
+                                    </span>
                                   </div>
                                   {selectedOrder.trackingNumber && (
                                     <div className="flex justify-between">

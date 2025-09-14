@@ -81,6 +81,8 @@ export default function HomePage({
     }
   }, [companySettings, dispatch]);
 
+
+  console.log('newArrivals', newArrivals)
   return (
     <>
       <Header heroSections={heroSections} />

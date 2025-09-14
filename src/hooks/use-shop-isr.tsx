@@ -93,11 +93,27 @@ export function useShopISR({
         setLoading(true);
         setError(null);
 
+        // Map frontend sort values to backend sort values
+        const sortByMap: Record<string, 'createdAt' | 'updatedAt' | 'price' | 'rating' | 'popularity'> = {
+          'most-popular': 'popularity',
+          'newest': 'createdAt',
+          'price-low-high': 'price',
+          'price-high-low': 'price',
+          'rating': 'rating',
+          'name-a-z': 'createdAt',
+          'name-z-a': 'createdAt',
+        };
+        
+        const mappedSortBy = filters?.sortBy ? sortByMap[filters.sortBy] || 'popularity' : undefined;
+        const sortOrder: 'asc' | 'desc' = filters?.sortBy === 'price-high-low' ? 'desc' : 'asc';
+        
         const params = {
           page,
           limit: 12, // Default items per page
-          category,
-          ...filters,
+          sortBy: mappedSortBy,
+          sortOrder,
+          minPrice: filters?.minPrice,
+          maxPrice: filters?.maxPrice,
         };
 
         let response: ProductResponse;

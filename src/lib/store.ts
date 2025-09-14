@@ -3,6 +3,10 @@ import { persistReducer, persistStore } from "redux-persist";
 import storage from "@/components/storage";
 import productsReducer from "./features/products/productsSlice";
 import cartsReducer from "./features/carts/cartsSlice";
+import { shippingAddressReducer } from "./features/shipping-address";
+import { authReducer } from "./features/auth";
+import { ordersReducer } from "./features/orders";
+import { couponsReducer } from "./features/coupons";
 import { apiSlice } from "./features/api/apiSlice";
 
 const persistConfig = {
@@ -15,6 +19,10 @@ const persistConfig = {
 const rootReducer = combineReducers({
   products: productsReducer,
   carts: cartsReducer,
+  shippingAddress: shippingAddressReducer,
+  auth: authReducer,
+  orders: ordersReducer,
+  coupons: couponsReducer,
   [apiSlice.reducerPath]: apiSlice.reducer,
 });
 const persistedReducer = persistReducer(persistConfig, rootReducer);

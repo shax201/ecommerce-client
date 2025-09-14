@@ -1,3 +1,6 @@
+"use client";
+
+
 import {
   createApi,
   fetchBaseQuery,
@@ -13,12 +16,25 @@ const mutex = new Mutex();
 const baseQuery = fetchBaseQuery({
   baseUrl: process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000",
   prepareHeaders: (headers) => {
-    // Read token from cookie (client-side)
-    const match = document.cookie.match(/(^|;) ?user-token=([^;]*)/);
-    const token = match?.[2];
+    // Get token from localStorage (primary) or cookie (fallback)
+    let token = null;
+    
+    // Try localStorage first
+    if (typeof window !== 'undefined') {
+      token = localStorage.getItem('user-token');
+    }
+    
+    // Fallback to cookie if localStorage is not available
+    if (!token && typeof document !== 'undefined') {
+      const match = document.cookie.match(/(^|;) ?user-token=([^;]*)/);
+      token = match?.[2];
+    }
 
     if (token) {
       headers.set("Authorization", `Bearer ${token}`);
+      console.log('🔐 [Redux API] Authorization header set:', `Bearer ${token.substring(0, 20)}...`);
+    } else {
+      console.log('⚠️ [Redux API] No token found in localStorage or cookies');
     }
 
     return headers;
@@ -33,15 +49,27 @@ const baseQueryWithReauth: BaseQueryFn<
   await mutex.waitForUnlock();
   let result = await baseQuery(args, api, extraOptions);
 
-  const match = document.cookie.match(/(^|;) ?user-token=([^;]*)/);
-
-  if (match) {
-    console.log("match", match[2]);
+  // Debug: Check if token is available (only in browser)
+  if (typeof document !== 'undefined') {
+    const match = document.cookie.match(/(^|;) ?user-token=([^;]*)/);
+    if (match) {
+      console.log("🍪 [Redux API] Cookie token found:", match[2].substring(0, 20) + "...");
+    }
   }
+
+  // Check localStorage token (only in browser)
+  if (typeof window !== 'undefined') {
+    const localToken = localStorage.getItem('user-token');
+    if (localToken) {
+      console.log("💾 [Redux API] localStorage token found:", localToken.substring(0, 20) + "...");
+    }
+  }
+
   return result;
 };
 
 export const apiSlice = createApi({
   baseQuery: baseQueryWithReauth,
+  tagTypes: ["Product", "Category", "ShippingAddress", "Order", "OrderAnalytics", "Coupon"],
   endpoints: (builder) => ({}),
 });

@@ -79,7 +79,7 @@ export function useHeroSectionManagementISR({
     }
   }, [filtersKey, heroSectionsData.length]);
 
-  const loadAllSections = useCallback(
+  const loadHeroSections = useCallback(
     async (page: number = 1) => {
       try {
         setLoading(true);

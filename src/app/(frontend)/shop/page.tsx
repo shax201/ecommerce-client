@@ -12,8 +12,25 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
   const category =
     typeof params.category === "string" ? params.category : undefined;
   const page = typeof params.page === "string" ? parseInt(params.page) : 1;
-  const sortBy =
+  const sortByParam =
     typeof params.sortBy === "string" ? params.sortBy : "most-popular";
+  
+  // Map frontend sort values to backend sort values
+  const sortByMap: Record<string, 'createdAt' | 'updatedAt' | 'price' | 'rating' | 'popularity'> = {
+    'most-popular': 'popularity',
+    'newest': 'createdAt',
+    'price-low-high': 'price',
+    'price-high-low': 'price',
+    'rating': 'rating',
+    'name-a-z': 'createdAt', // Using createdAt as fallback for name sorting
+    'name-z-a': 'createdAt',
+  };
+  
+  const sortBy = sortByMap[sortByParam] || 'popularity';
+  
+  // Determine sort order based on sortByParam
+  const sortOrder = sortByParam === 'price-high-low' ? 'desc' : 'asc';
+  
   const minPrice =
     typeof params.minPrice === "string"
       ? parseFloat(params.minPrice)
@@ -27,8 +44,9 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
   const productsResponse = await getAllProducts({
     page,
     limit: 12,
-    category,
+    categories: category ? [category] : undefined,
     sortBy,
+    sortOrder,
     minPrice,
     maxPrice,
   });

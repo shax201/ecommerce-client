@@ -9,13 +9,13 @@ export default async function ProductPage(props: {
   const productId = params.slug[0];
 
   // Fetch product at build time
-  const productResponse = await getSingleProduct(productId);
+  const product = await getSingleProduct(productId);
 
-  if (!productResponse.success || !productResponse.data) {
+  if (!product) {
     notFound();
   }
 
   return (
-    <ProductDetails id={productId} initialProduct={productResponse.data} />
+    <ProductDetails id={productId} initialProduct={product} />
   );
 }

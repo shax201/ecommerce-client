@@ -21,25 +21,25 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
-import { MapPin, Plus, Edit, Trash2 } from "lucide-react";
-
-interface Address {
-  _id: string;
-  address: string;
-  city: string;
-  state: string;
-  zip: string;
-  country: string;
-  phone: string;
-  isDefault: boolean;
-}
+import { MapPin, Plus, Edit, Trash2, Loader2 } from "lucide-react";
+import {
+  useGetShippingAddressesQuery,
+  useCreateShippingAddressMutation,
+  useUpdateShippingAddressMutation,
+  useDeleteShippingAddressMutation,
+  useSetDefaultShippingAddressMutation,
+  ShippingAddress,
+  CreateShippingAddressData,
+  UpdateShippingAddressData,
+} from "@/lib/features/shipping-address";
+import { useAppSelector } from "@/lib/hooks/redux";
 
 export function AddressManagement() {
-  const [addresses, setAddresses] = useState<Address[]>([]);
   const [isAddingAddress, setIsAddingAddress] = useState(false);
-  const [editingAddress, setEditingAddress] = useState<Address | null>(null);
+  const [editingAddress, setEditingAddress] = useState<ShippingAddress | null>(null);
 
-  const [newAddress, setNewAddress] = useState<Omit<Address, "_id">>({
+  const [newAddress, setNewAddress] = useState<CreateShippingAddressData>({
+    name: "",
     address: "",
     city: "",
     state: "",
@@ -49,39 +49,40 @@ export function AddressManagement() {
     isDefault: false,
   });
 
-  // Fetch addresses from backend
-  useEffect(() => {
-    fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/shipping`)
-      .then((res) => res.json())
-      .then((data) => setAddresses(data.data || []))
-      .catch((err) => console.error("Error fetching addresses:", err));
-  }, []);
+  // Get user ID from Redux state
+  const { user } = useAppSelector((state) => state.auth);
+  const userId = user?._id;
+
+  // Redux API hooks
+  const {
+    data: addressesData,
+    isLoading: isLoadingAddresses,
+    error: addressesError,
+    refetch: refetchAddresses,
+  } = useGetShippingAddressesQuery({ userId });
+
+  const [createAddress, { isLoading: isCreating }] = useCreateShippingAddressMutation();
+  const [updateAddress, { isLoading: isUpdating }] = useUpdateShippingAddressMutation();
+  const [deleteAddress, { isLoading: isDeleting }] = useDeleteShippingAddressMutation();
+  const [setDefaultAddress, { isLoading: isSettingDefault }] = useSetDefaultShippingAddressMutation();
+
+  const addresses = addressesData?.data || [];
 
   // Add new address
   const handleAddAddress = async () => {
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/shipping`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(newAddress),
-        }
-      );
-      const data = await res.json();
-      if (res.ok) {
-        setAddresses((prev) => [...prev, data.data]);
-        setIsAddingAddress(false);
-        setNewAddress({
-          address: "",
-          city: "",
-          state: "",
-          zip: "",
-          country: "Bangladesh",
-          phone: "",
-          isDefault: false,
-        });
-      }
+      await createAddress(newAddress).unwrap();
+      setIsAddingAddress(false);
+      setNewAddress({
+        name: "",
+        address: "",
+        city: "",
+        state: "",
+        zip: "",
+        country: "Bangladesh",
+        phone: "",
+        isDefault: false,
+      });
     } catch (err) {
       console.error("Error adding address:", err);
     }
@@ -91,23 +92,19 @@ export function AddressManagement() {
   const handleUpdateAddress = async () => {
     if (!editingAddress) return;
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/shipping/${editingAddress._id}`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(editingAddress),
-        }
-      );
-      const data = await res.json();
-      if (res.ok) {
-        setAddresses((prev) =>
-          prev.map((addr) =>
-            addr._id === editingAddress._id ? data.data : addr
-          )
-        );
-        setEditingAddress(null);
-      }
+      const updateData: UpdateShippingAddressData = {
+        name: editingAddress.name,
+        address: editingAddress.address,
+        city: editingAddress.city,
+        state: editingAddress.state,
+        zip: editingAddress.zip,
+        country: editingAddress.country,
+        phone: editingAddress.phone,
+        isDefault: editingAddress.isDefault,
+      };
+      
+      await updateAddress({ id: editingAddress._id, data: updateData }).unwrap();
+      setEditingAddress(null);
     } catch (err) {
       console.error("Error updating address:", err);
     }
@@ -116,15 +113,7 @@ export function AddressManagement() {
   // Delete address
   const handleDeleteAddress = async (id: string) => {
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/shipping/${id}`,
-        {
-          method: "DELETE",
-        }
-      );
-      if (res.ok) {
-        setAddresses((prev) => prev.filter((addr) => addr._id !== id));
-      }
+      await deleteAddress(id).unwrap();
     } catch (err) {
       console.error("Error deleting address:", err);
     }
@@ -133,17 +122,7 @@ export function AddressManagement() {
   // Set default
   const handleSetDefault = async (id: string) => {
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/shipping/${id}/default`,
-        {
-          method: "PATCH",
-        }
-      );
-      if (res.ok) {
-        setAddresses((prev) =>
-          prev.map((addr) => ({ ...addr, isDefault: addr._id === id }))
-        );
-      }
+      await setDefaultAddress(id).unwrap();
     } catch (err) {
       console.error("Error setting default:", err);
     }
@@ -177,6 +156,19 @@ export function AddressManagement() {
                 </DialogHeader>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="md:col-span-2">
+                    <Label>Full Name</Label>
+                    <Input
+                      value={newAddress.name}
+                      onChange={(e) =>
+                        setNewAddress((prev) => ({
+                          ...prev,
+                          name: e.target.value,
+                        }))
+                      }
+                      placeholder="Enter full name"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
                     <Label>Street Address</Label>
                     <Input
                       value={newAddress.address}
@@ -186,6 +178,7 @@ export function AddressManagement() {
                           address: e.target.value,
                         }))
                       }
+                      placeholder="Enter street address"
                     />
                   </div>
                   <div>
@@ -265,10 +258,20 @@ export function AddressManagement() {
                   <Button
                     variant="outline"
                     onClick={() => setIsAddingAddress(false)}
+                    disabled={isCreating}
                   >
                     Cancel
                   </Button>
-                  <Button onClick={handleAddAddress}>Save</Button>
+                  <Button onClick={handleAddAddress} disabled={isCreating}>
+                    {isCreating ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      "Save"
+                    )}
+                  </Button>
                 </div>
               </DialogContent>
             </Dialog>
@@ -277,17 +280,28 @@ export function AddressManagement() {
       </Card>
 
       {/* Addresses List */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {addresses.map((address) => (
-          <Card key={address._id} className="relative">
-            <CardContent className="pt-6">
-              <div className="flex items-start justify-between mb-4">
-                <div>
-                  <h3 className="font-medium">{address.address}</h3>
-                  <p className="text-sm text-muted-foreground">
-                    {address.city}, {address.state} {address.zip}
-                  </p>
-                </div>
+      {isLoadingAddresses ? (
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="h-8 w-8 animate-spin" />
+          <span className="ml-2">Loading addresses...</span>
+        </div>
+      ) : addressesError ? (
+        <div className="text-center py-8 text-red-600">
+          Error loading addresses. Please try again.
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {addresses.map((address) => (
+            <Card key={address._id} className="relative">
+              <CardContent className="pt-6">
+                <div className="flex items-start justify-between mb-4">
+                  <div>
+                    <h3 className="font-medium">{address.name}</h3>
+                    <p className="text-sm text-muted-foreground">{address.address}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {address.city}, {address.state} {address.zip}
+                    </p>
+                  </div>
                 {address.isDefault && (
                   <Badge
                     variant="secondary"
@@ -325,6 +339,20 @@ export function AddressManagement() {
                       </DialogHeader>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="md:col-span-2">
+                          <Label>Full Name</Label>
+                          <Input
+                            value={editingAddress?.name || ""}
+                            onChange={(e) =>
+                              setEditingAddress((prev) =>
+                                prev
+                                  ? { ...prev, name: e.target.value }
+                                  : null
+                              )
+                            }
+                            placeholder="Enter full name"
+                          />
+                        </div>
+                        <div className="md:col-span-2">
                           <Label>Street Address</Label>
                           <Input
                             value={editingAddress?.address || ""}
@@ -335,6 +363,7 @@ export function AddressManagement() {
                                   : null
                               )
                             }
+                            placeholder="Enter street address"
                           />
                         </div>
                         <div>
@@ -410,10 +439,20 @@ export function AddressManagement() {
                         <Button
                           variant="outline"
                           onClick={() => setEditingAddress(null)}
+                          disabled={isUpdating}
                         >
                           Cancel
                         </Button>
-                        <Button onClick={handleUpdateAddress}>Update</Button>
+                        <Button onClick={handleUpdateAddress} disabled={isUpdating}>
+                          {isUpdating ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Updating...
+                            </>
+                          ) : (
+                            "Update"
+                          )}
+                        </Button>
                       </div>
                     </DialogContent>
                   </Dialog>
@@ -422,9 +461,14 @@ export function AddressManagement() {
                     variant="outline"
                     size="sm"
                     onClick={() => handleDeleteAddress(address._id)}
+                    disabled={isDeleting}
                     className="text-red-600 hover:text-red-700"
                   >
-                    <Trash2 className="h-4 w-4 mr-1" />
+                    {isDeleting ? (
+                      <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-4 w-4 mr-1" />
+                    )}
                     Delete
                   </Button>
                 </div>
@@ -433,7 +477,11 @@ export function AddressManagement() {
                     variant="ghost"
                     size="sm"
                     onClick={() => handleSetDefault(address._id)}
+                    disabled={isSettingDefault}
                   >
+                    {isSettingDefault ? (
+                      <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                    ) : null}
                     Set as Default
                   </Button>
                 )}
@@ -441,7 +489,8 @@ export function AddressManagement() {
             </CardContent>
           </Card>
         ))}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

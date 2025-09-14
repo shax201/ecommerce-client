@@ -74,12 +74,20 @@ const extractData = <T>(
   operation: string,
   fallback: T
 ): T => {
-  if (result.status === "fulfilled" && result.value.success) {
-    return result.value.data;
+  if (result.status === "fulfilled") {
+    // Check if the result has success/data structure
+    if (result.value && typeof result.value === 'object' && 'success' in result.value) {
+      if (result.value.success) {
+        return result.value.data;
+      } else {
+        logISRError(operation, result.value.message || "Operation failed");
+      }
+    } else {
+      // Direct array/object result (like from getNewArrivals, getTopSellingProducts)
+      return result.value;
+    }
   } else if (result.status === "rejected") {
     logISRError(operation, result.reason);
-  } else if (result.status === "fulfilled" && !result.value.success) {
-    logISRError(operation, result.value.message || "Operation failed");
   }
 
   return fallback;

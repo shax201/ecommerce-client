@@ -65,8 +65,13 @@ const data = {
       icon: Package,
     },
     {
-      title: "Orders",
+      title: "Orders (by Shahadat)",
       url: "/orders",
+      icon: ShoppingCart,
+    },
+    {
+      title: "Coupons (by Shahadat)",
+      url: "/coupons",
       icon: ShoppingCart,
     },
     {
@@ -75,7 +80,7 @@ const data = {
       icon: Users,
     },
     {
-      title: "Content",
+      title: "Content (by Shahadat)",
       url: "/content",
       icon: FileText,
     },
@@ -83,7 +88,7 @@ const data = {
 
   navSecondary: [
     {
-      title: "Settings",
+      title: "Settings  (by Shahadat)",
       url: "/dashboard/settings",
       icon: SettingsIcon,
     },

@@ -6,8 +6,8 @@ import Footer from "@/components/layout/Footer";
 import {
   getNewArrivals,
   getTopSellingProducts,
-  getCompanySettings,
 } from "@/actions/products";
+import { getCompanySettings } from "@/actions/company-settings";
 import {
   getActiveDynamicMenusISR,
   getActiveLogoISR,
@@ -64,6 +64,8 @@ export default async function Home() {
   // Fetch data at build time
   const props = await getHomePageData();
 
+  // console.log('props', props)
+
   return (
     <>
       <TopBanner heroSections={props.heroSections} />
@@ -111,6 +113,9 @@ async function getHomePageData(): Promise<HomeProps> {
       getFooterISR(),
       getCompanySettings(),
     ]);
+
+ 
+
 
     // Extract data with utilities
     const isrData = extractISRData([

@@ -189,13 +189,6 @@ const fetchWithISR = async (
 const handleApiResponse = async (response: Response, url: string) => {
   const data = await response.json();
 
-  console.log(`🔍 API Response [${response.status}] - ${url}:`, {
-    ok: response.ok,
-    status: response.status,
-    statusText: response.statusText,
-    data,
-    headers: Object.fromEntries(response.headers.entries()),
-  });
 
   if (response.ok && data.success) {
     return {
@@ -237,7 +230,6 @@ export async function createLogo(
 
   try {
     const url = `${getBackendUrl()}/content/logos`;
-    console.log(`🚀 API Request - ${url}:`, { method: "POST", body: formData });
 
     const response = await fetch(url, {
       method: "POST",
@@ -265,7 +257,6 @@ export async function getLogos(
     if (filters.limit) queryParams.append("limit", filters.limit.toString());
 
     const url = `${getBackendUrl()}/content/logos?${queryParams.toString()}`;
-    console.log(`🚀 API Request - ${url}:`, { method: "GET", filters });
 
     const response = await fetch(url);
     return await handleApiResponse(response, url);
@@ -279,7 +270,6 @@ export async function getActiveLogosByType(
 ): Promise<ContentResponse> {
   try {
     const url = `${getBackendUrl()}/content/logos/active/${type}`;
-    console.log(`🚀 API Request - ${url}:`, { method: "GET", type });
 
     const response = await fetch(url);
     return await handleApiResponse(response, url);
@@ -295,7 +285,6 @@ export async function getLogoById(id: string): Promise<ContentResponse> {
 
   try {
     const url = `${getBackendUrl()}/content/logos/${id}`;
-    console.log(`🚀 API Request - ${url}:`, { method: "GET", id });
 
     const response = await fetch(url);
     return await handleApiResponse(response, url);
@@ -314,11 +303,6 @@ export async function updateLogo(
 
   try {
     const url = `${getBackendUrl()}/content/logos/${id}`;
-    console.log(`🚀 API Request - ${url}:`, {
-      method: "PUT",
-      id,
-      body: formData,
-    });
 
     const response = await fetch(url, {
       method: "PUT",
@@ -341,7 +325,6 @@ export async function deleteLogo(id: string): Promise<ContentResponse> {
 
   try {
     const url = `${getBackendUrl()}/content/logos/${id}`;
-    console.log(`🚀 API Request - ${url}:`, { method: "DELETE", id });
 
     const response = await fetch(url, {
       method: "DELETE",
@@ -363,7 +346,6 @@ export async function createHeroSection(
 
   try {
     const url = `${getBackendUrl()}/content/hero-sections`;
-    console.log(`🚀 API Request - ${url}:`, { method: "POST", body: formData });
 
     const response = await fetch(url, {
       method: "POST",
@@ -390,10 +372,8 @@ export async function getHeroSections(
     if (filters.limit) queryParams.append("limit", filters.limit.toString());
 
     const url = `${getBackendUrl()}/content/hero-sections?${queryParams.toString()}`;
-    console.log(`🚀 API Request - ${url}:`, { method: "GET", filters });
 
     const response = await fetch(url);
-    console.log("response", response);
     return await handleApiResponse(response, url);
   } catch (error) {
     return handleApiError(error, "fetching hero sections");
@@ -403,7 +383,6 @@ export async function getHeroSections(
 export async function getActiveHeroSections(): Promise<ContentResponse> {
   try {
     const url = `${getBackendUrl()}/content/hero-sections/active`;
-    console.log(`🚀 API Request - ${url}:`, { method: "GET" });
 
     const response = await fetch(url);
     return await handleApiResponse(response, url);
@@ -541,7 +520,6 @@ export async function getHeroSectionById(id: string): Promise<ContentResponse> {
 
   try {
     const url = `${getBackendUrl()}/content/hero-sections/${id}`;
-    console.log(`🚀 API Request - ${url}:`, { method: "GET", id });
 
     const response = await fetch(url);
     return await handleApiResponse(response, url);
@@ -560,11 +538,6 @@ export async function updateHeroSection(
 
   try {
     const url = `${getBackendUrl()}/content/hero-sections/${id}`;
-    console.log(`🚀 API Request - ${url}:`, {
-      method: "PUT",
-      id,
-      body: formData,
-    });
 
     const response = await fetch(url, {
       method: "PUT",
@@ -587,7 +560,6 @@ export async function deleteHeroSection(id: string): Promise<ContentResponse> {
 
   try {
     const url = `${getBackendUrl()}/content/hero-sections/${id}`;
-    console.log(`🚀 API Request - ${url}:`, { method: "DELETE", id });
 
     const response = await fetch(url, {
       method: "DELETE",
@@ -604,7 +576,6 @@ export async function reorderHeroSections(
 ): Promise<ContentResponse> {
   try {
     const url = `${getBackendUrl()}/content/hero-sections/reorder`;
-    console.log(`🚀 API Request - ${url}:`, { method: "PUT", body: updates });
 
     const response = await fetch(url, {
       method: "PUT",
@@ -636,7 +607,6 @@ export async function createClientLogo(
 
   try {
     const url = `${getBackendUrl()}/content/client-logos`;
-    console.log(`🚀 API Request - ${url}:`, { method: "POST", body: formData });
 
     const response = await fetch(url, {
       method: "POST",
@@ -663,10 +633,8 @@ export async function getClientLogos(
     if (filters.limit) queryParams.append("limit", filters.limit.toString());
 
     const url = `${getBackendUrl()}/content/client-logos?${queryParams.toString()}`;
-    console.log(`🚀 API Request - ${url}:`, { method: "GET", filters });
 
     const response = await fetch(url);
-    console.log("response", response);
     return await handleApiResponse(response, url);
   } catch (error) {
     return handleApiError(error, "fetching client logos");
@@ -676,7 +644,6 @@ export async function getClientLogos(
 export async function getActiveClientLogos(): Promise<ContentResponse> {
   try {
     const url = `${getBackendUrl()}/content/client-logos/active`;
-    console.log(`🚀 API Request - ${url}:`, { method: "GET" });
 
     const response = await fetch(url);
     return await handleApiResponse(response, url);
@@ -692,7 +659,6 @@ export async function getClientLogoById(id: string): Promise<ContentResponse> {
 
   try {
     const url = `${getBackendUrl()}/content/client-logos/${id}`;
-    console.log(`🚀 API Request - ${url}:`, { method: "GET", id });
 
     const response = await fetch(url);
     return await handleApiResponse(response, url);
@@ -711,11 +677,6 @@ export async function updateClientLogo(
 
   try {
     const url = `${getBackendUrl()}/content/client-logos/${id}`;
-    console.log(`🚀 API Request - ${url}:`, {
-      method: "PUT",
-      id,
-      body: formData,
-    });
 
     const response = await fetch(url, {
       method: "PUT",
@@ -738,7 +699,6 @@ export async function deleteClientLogo(id: string): Promise<ContentResponse> {
 
   try {
     const url = `${getBackendUrl()}/content/client-logos/${id}`;
-    console.log(`🚀 API Request - ${url}:`, { method: "DELETE", id });
 
     const response = await fetch(url, {
       method: "DELETE",
@@ -755,7 +715,6 @@ export async function reorderClientLogos(
 ): Promise<ContentResponse> {
   try {
     const url = `${getBackendUrl()}/content/client-logos/reorder`;
-    console.log(`🚀 API Request - ${url}:`, { method: "PUT", body: updates });
 
     const response = await fetch(url, {
       method: "PUT",
@@ -775,7 +734,6 @@ export async function reorderClientLogos(
 export async function getFooter(): Promise<ContentResponse> {
   try {
     const url = `${getBackendUrl()}/content/footer`;
-    console.log(`🚀 API Request - ${url}:`, { method: "GET" });
 
     const response = await fetch(url);
     return await handleApiResponse(response, url);
@@ -789,7 +747,6 @@ export async function updateFooter(
 ): Promise<ContentResponse> {
   try {
     const url = `${getBackendUrl()}/content/footer`;
-    console.log(`🚀 API Request - ${url}:`, { method: "PUT", body: formData });
 
     const response = await fetch(url, {
       method: "PUT",
@@ -810,7 +767,6 @@ export async function updateContactInfo(
 ): Promise<ContentResponse> {
   try {
     const url = `${getBackendUrl()}/content/footer/contact-info`;
-    console.log(`🚀 API Request - ${url}:`, { method: "PUT", body: formData });
 
     const response = await fetch(url, {
       method: "PUT",
@@ -836,7 +792,6 @@ export async function addFooterSection(
 
   try {
     const url = `${getBackendUrl()}/content/footer/sections`;
-    console.log(`🚀 API Request - ${url}:`, { method: "POST", body: formData });
 
     const response = await fetch(url, {
       method: "POST",
@@ -862,11 +817,6 @@ export async function updateFooterSection(
 
   try {
     const url = `${getBackendUrl()}/content/footer/sections/${sectionId}`;
-    console.log(`🚀 API Request - ${url}:`, {
-      method: "PUT",
-      sectionId,
-      body: formData,
-    });
 
     const response = await fetch(url, {
       method: "PUT",
@@ -889,17 +839,14 @@ export async function deleteFooterSection(
     return { success: false, message: "Footer section ID is required." };
   }
 
-  console.log("sectionId", sectionId);
   try {
     const url = `${getBackendUrl()}/content/footer/sections/${sectionId}`;
-    console.log(`🚀 API Request - ${url}:`, { method: "DELETE", sectionId });
 
     const response = await fetch(url, {
       method: "DELETE",
     });
 
     const result = await handleApiResponse(response, url);
-    console.log("result", result);
 
     return result;
   } catch (error) {
@@ -924,11 +871,6 @@ export async function addFooterLink(
 
   try {
     const url = `${getBackendUrl()}/content/footer/sections/${sectionId}/links`;
-    console.log(`🚀 API Request - ${url}:`, {
-      method: "POST",
-      sectionId,
-      body: formData,
-    });
 
     const response = await fetch(url, {
       method: "POST",
@@ -958,12 +900,6 @@ export async function updateFooterLink(
 
   try {
     const url = `${getBackendUrl()}/content/footer/sections/${sectionId}/links/${linkId}`;
-    console.log(`🚀 API Request - ${url}:`, {
-      method: "PUT",
-      sectionId,
-      linkId,
-      body: formData,
-    });
 
     const response = await fetch(url, {
       method: "PUT",
@@ -992,11 +928,6 @@ export async function deleteFooterLink(
 
   try {
     const url = `${getBackendUrl()}/content/footer/sections/${sectionId}/links/${linkId}`;
-    console.log(`🚀 API Request - ${url}:`, {
-      method: "DELETE",
-      sectionId,
-      linkId,
-    });
 
     const response = await fetch(url, {
       method: "DELETE",
@@ -1013,7 +944,6 @@ export async function deleteFooterLink(
 export async function getNavbar(): Promise<ContentResponse> {
   try {
     const url = `${getBackendUrl()}/content/navbar`;
-    console.log(`🚀 API Request - ${url}:`, { method: "GET" });
 
     const response = await fetch(url, {
       method: "GET",
@@ -1070,7 +1000,6 @@ export async function updateNavbar(
 ): Promise<ContentResponse> {
   try {
     const url = `${getBackendUrl()}/content/navbar`;
-    console.log(`🚀 API Request - ${url}:`, { method: "PUT", body: formData });
 
     const response = await fetch(url, {
       method: "PUT",
@@ -1098,7 +1027,6 @@ export async function addNavbarMenu(
 
   try {
     const url = `${getBackendUrl()}/content/navbar/menus`;
-    console.log(`🚀 API Request - ${url}:`, { method: "POST", body: formData });
 
     const response = await fetch(url, {
       method: "POST",
@@ -1124,11 +1052,6 @@ export async function updateNavbarMenu(
 
   try {
     const url = `${getBackendUrl()}/content/navbar/menus/${menuId}`;
-    console.log(`🚀 API Request - ${url}:`, {
-      method: "PUT",
-      menuId,
-      body: formData,
-    });
 
     const response = await fetch(url, {
       method: "PUT",
@@ -1153,7 +1076,6 @@ export async function deleteNavbarMenu(
 
   try {
     const url = `${getBackendUrl()}/content/navbar/menus/${menuId}`;
-    console.log(`🚀 API Request - ${url}:`, { method: "DELETE", menuId });
 
     const response = await fetch(url, {
       method: "DELETE",
@@ -1181,11 +1103,6 @@ export async function addNavbarMenuItem(
 
   try {
     const url = `${getBackendUrl()}/content/navbar/menus/${menuId}/items`;
-    console.log(`🚀 API Request - ${url}:`, {
-      method: "POST",
-      menuId,
-      body: formData,
-    });
 
     const response = await fetch(url, {
       method: "POST",
@@ -1215,12 +1132,6 @@ export async function updateNavbarMenuItem(
 
   try {
     const url = `${getBackendUrl()}/content/navbar/menus/${menuId}/items/${menuItemId}`;
-    console.log(`🚀 API Request - ${url}:`, {
-      method: "PUT",
-      menuId,
-      menuItemId,
-      body: formData,
-    });
 
     const response = await fetch(url, {
       method: "PUT",
@@ -1249,11 +1160,6 @@ export async function deleteNavbarMenuItem(
 
   try {
     const url = `${getBackendUrl()}/content/navbar/menus/${menuId}/items/${menuItemId}`;
-    console.log(`🚀 API Request - ${url}:`, {
-      method: "DELETE",
-      menuId,
-      menuItemId,
-    });
 
     const response = await fetch(url, {
       method: "DELETE",
@@ -1274,10 +1180,6 @@ export async function reorderNavbarMenus(
 
   try {
     const url = `${getBackendUrl()}/content/navbar/menus/reorder`;
-    console.log(`🚀 API Request - ${url}:`, {
-      method: "PUT",
-      body: { updates },
-    });
 
     const response = await fetch(url, {
       method: "PUT",
@@ -1306,11 +1208,6 @@ export async function reorderNavbarMenuItems(
 
   try {
     const url = `${getBackendUrl()}/content/navbar/menus/${menuId}/items/reorder`;
-    console.log(`🚀 API Request - ${url}:`, {
-      method: "PUT",
-      menuId,
-      body: { updates },
-    });
 
     const response = await fetch(url, {
       method: "PUT",
@@ -1339,7 +1236,6 @@ export async function createDynamicMenu(
 
   try {
     const url = `${getBackendUrl()}/content/dynamic-menus`;
-    console.log(`🚀 API Request - ${url}:`, { method: "POST", body: formData });
 
     const response = await fetch(url, {
       method: "POST",
@@ -1366,7 +1262,6 @@ export async function getDynamicMenus(
     if (filters.limit) queryParams.append("limit", filters.limit.toString());
 
     const url = `${getBackendUrl()}/content/dynamic-menus?${queryParams.toString()}`;
-    console.log(`🚀 API Request - ${url}:`, { method: "GET", filters });
 
     const response = await fetch(url);
     return await handleApiResponse(response, url);
@@ -1382,7 +1277,6 @@ export async function getDynamicMenuById(id: string): Promise<ContentResponse> {
 
   try {
     const url = `${getBackendUrl()}/content/dynamic-menus/${id}`;
-    console.log(`🚀 API Request - ${url}:`, { method: "GET", id });
 
     const response = await fetch(url);
     return await handleApiResponse(response, url);
@@ -1400,7 +1294,6 @@ export async function getDynamicMenuBySlug(
 
   try {
     const url = `${getBackendUrl()}/content/dynamic-menus/slug/${slug}`;
-    console.log(`🚀 API Request - ${url}:`, { method: "GET", slug });
 
     const response = await fetch(url);
     return await handleApiResponse(response, url);

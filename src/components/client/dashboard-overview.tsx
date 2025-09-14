@@ -406,7 +406,7 @@ export function DashboardOverview() {
         </Card>
       </div>
 
-      <Card className="bg-white/60 backdrop-blur-sm border-slate-200/60 shadow-sm overflow-hidden">
+      {/* <Card className="bg-white/60 backdrop-blur-sm border-slate-200/60 shadow-sm overflow-hidden">
         <CardHeader className="pb-4">
           <CardTitle className="bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">
             Order Status Analytics
@@ -528,123 +528,10 @@ export function DashboardOverview() {
             </ResponsiveContainer>
           </ChartContainer>
         </CardContent>
-      </Card>
-
-      {/* Enhanced Recent Activity and Quick Actions */}
-      <div className="grid gap-6 md:grid-cols-3">
-        {/* Enhanced Recent Activity */}
-        <Card className="md:col-span-2">
-          <CardHeader>
-            <CardTitle>Recent Activity</CardTitle>
-            <CardDescription>
-              Your latest account activity and updates
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {/* Recent activity data will be fetched from API */}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Quick Actions & Loyalty */}
-        <div className="space-y-6">
-          {/* Enhanced Loyalty Progress */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Star className="h-5 w-5 text-yellow-500" />
-                Loyalty Progress
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <div className="flex justify-between text-sm mb-2">
-                  <span>Current Points</span>
-                  <span className="font-medium">
-                    {data.metrics.loyaltyPoints}
-                  </span>
-                </div>
-                <Progress
-                  value={(data.metrics.loyaltyPoints / 1500) * 100}
-                  className="h-3"
-                />
-                <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                  <span>0</span>
-                  <span>1500 (Next Reward)</span>
-                </div>
-              </div>
-              <div className="text-center p-3 bg-yellow-50 rounded-lg">
-                <p className="text-sm font-medium text-yellow-800">
-                  {1500 - data.metrics.loyaltyPoints} points until your next
-                  reward!
-                </p>
-                <p className="text-xs text-yellow-600 mt-1">
-                  Earn 50 points per $10 spent
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Quick Actions */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Quick Actions</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <Button
-                className="w-full justify-start bg-transparent"
-                variant="outline"
-              >
-                <Package className="h-4 w-4 mr-2" />
-                Track Orders
-              </Button>
-              <Button
-                className="w-full justify-start bg-transparent"
-                variant="outline"
-              >
-                <Star className="h-4 w-4 mr-2" />
-                Write Reviews
-              </Button>
-              <Button
-                className="w-full justify-start bg-transparent"
-                variant="outline"
-              >
-                <Gift className="h-4 w-4 mr-2" />
-                View Rewards
-              </Button>
-              <Button
-                className="w-full justify-start bg-transparent"
-                variant="outline"
-              >
-                <CreditCard className="h-4 w-4 mr-2" />
-                Payment Methods
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-
-      {/* Enhanced Recent Orders Summary */}
-      {/* <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Recent Orders</CardTitle>
-              <CardDescription>
-                Your latest order activity with detailed information
-              </CardDescription>
-            </div>
-            <Button variant="outline" size="sm">
-              <Eye className="h-4 w-4 mr-2" />
-              View All
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4"></div>
-        </CardContent>
       </Card> */}
+
+ 
+
     </div>
   );
 }

@@ -10,8 +10,8 @@ interface FooterManagementISRProps {
 export function useFooterManagementISR({
   footerData,
 }: FooterManagementISRProps) {
-  const [footer, setFooter] = React.useState<any>(null);
-  const [loading, setLoading] = React.useState(!footerData);
+  const [footer, setFooter] = React.useState<any>(footerData || null);
+  const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
   // Use ref to track if we've already processed the footerData

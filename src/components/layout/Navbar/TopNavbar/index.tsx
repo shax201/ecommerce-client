@@ -9,12 +9,16 @@ import { cn } from "@/lib/utils";
 import { integralCF } from "@/styles/fonts";
 import Image from "next/image";
 import Link from "next/link";
-import React from "react";
+import React, { useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { RootState } from "@/lib/store";
+import { initializeAuth } from "@/lib/features/auth/authSlice";
 import { NavMenu } from "../navbar.types";
 import CartBtn from "./CartBtn";
 import { MenuItem } from "./MenuItem";
 import { MenuList } from "./MenuList";
 import ResTopNavbar from "./ResTopNavbar";
+import UserDropdown from "./UserDropdown";
 import {
   useDynamicMenus,
   DynamicMenu,
@@ -128,6 +132,11 @@ const convertDynamicMenuToNavMenu = (dynamicMenus: DynamicMenu[]): NavMenu => {
 };
 
 const TopNavbar = ({ dynamicMenus, logo }: TopNavbarProps) => {
+  const dispatch = useDispatch();
+  
+  // Get auth state from Redux
+  const { user, isAuthenticated } = useSelector((state: RootState) => state.auth);
+  
   // Use the custom ISR hook for better organization
   const { menusData, logoData, isLoading, hasError, dataSource } = useNavbarISR(
     { dynamicMenus, logo }
@@ -138,6 +147,11 @@ const TopNavbar = ({ dynamicMenus, logo }: TopNavbarProps) => {
     menusData.length > 0
       ? convertDynamicMenuToNavMenu(menusData)
       : fallbackData;
+
+  // Initialize auth state on component mount
+  useEffect(() => {
+    dispatch(initializeAuth());
+  }, [dispatch]);
 
   // Debug logging (only in development)
   if (process.env.NODE_ENV === "development") {
@@ -253,16 +267,7 @@ const TopNavbar = ({ dynamicMenus, logo }: TopNavbarProps) => {
             />
           </Link>
           <CartBtn />
-          <Link href="/signin" className="p-1">
-            <Image
-              priority
-              src="/icons/user.svg"
-              height={100}
-              width={100}
-              alt="user"
-              className="max-w-[22px] max-h-[22px]"
-            />
-          </Link>
+          <UserDropdown user={user} isAuthenticated={isAuthenticated} />
         </div>
       </div>
     </nav>

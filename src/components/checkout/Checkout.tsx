@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,11 +13,16 @@ import { useRouter } from "next/navigation";
 import { RootState } from "@/lib/store";
 import { useAppSelector } from "@/lib/hooks/redux";
 import { usePurchaseProductMutation } from "@/lib/features/products/productApi";
+import { 
+  useGetDefaultShippingAddressQuery,
+  useCreateShippingAddressMutation 
+} from "@/lib/features/shipping-address";
 
 import BreadcrumbProduct from "../product-page/BreadcrumbProduct";
 
 export function CheckoutPage() {
   const [paymentMethod, setPaymentMethod] = useState("card");
+  const [isLoadingAddress, setIsLoadingAddress] = useState(true);
   const { cart, adjustedTotalPrice } = useAppSelector(
     (state: RootState) => state.carts
   );
@@ -44,54 +49,125 @@ export function CheckoutPage() {
     setFormData({ ...formData, [e.target.id]: e.target.value });
   };
 
+  // Get user ID from localStorage for the query
+  const [userId, setUserId] = useState<string | undefined>(undefined);
+
+  // Get default shipping address using Redux query
+  const { 
+    data: defaultAddressData, 
+    isLoading: isDefaultAddressLoading, 
+    error: defaultAddressError 
+  } = useGetDefaultShippingAddressQuery({ userId }, {
+    skip: !userId, // Skip query if no userId
+  });
+
+  // Create shipping address mutation
+  const [createShippingAddress, { isLoading: isCreatingAddress }] = useCreateShippingAddressMutation();
+
+  // Set user ID on component mount
+  useEffect(() => {
+    const user = localStorage.getItem("client");
+    if (user) {
+      const userObj = JSON.parse(user);
+      setUserId(userObj._id);
+    }
+  }, []);
+
+  // Update form data when default address is loaded
+  useEffect(() => {
+    if (defaultAddressData?.data && userId) {
+      const defaultAddress = defaultAddressData.data;
+      const user = localStorage.getItem("client");
+      const userObj = user ? JSON.parse(user) : null;
+
+      console.log('🏠 [Checkout] Default address received:', defaultAddress);
+
+      // Parse the name to get first and last name
+      const nameParts = defaultAddress.name.split(' ');
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || '';
+
+      setFormData(prev => ({
+        ...prev,
+        firstName,
+        lastName,
+        email: userObj?.email || '',
+        phone: defaultAddress.phone,
+        address: defaultAddress.address,
+        city: defaultAddress.city,
+        state: defaultAddress.state,
+        zip: defaultAddress.zip,
+        country: defaultAddress.country,
+      }));
+    }
+  }, [defaultAddressData, userId]);
+
+  // Update loading state based on Redux query
+  useEffect(() => {
+    setIsLoadingAddress(isDefaultAddressLoading);
+  }, [isDefaultAddressLoading]);
+
   const checkoutHandler = async () => {
     const user = localStorage.getItem("client");
     if (!user || !cart?.items?.length) return;
 
-    const match = document.cookie.match(/(^|;) ?user-token=([^;]*)/);
-
-    if (match) {
-      console.log("match", match[2]);
-    }
-
     const userObj = JSON.parse(user);
     const productIds = cart.items.map((pro) => pro.id);
 
-    const orderPayload: any = {
-      clientID: userObj._id,
-      productID: productIds,
-      paymentMethod,
-      totalPrice: adjustedTotalPrice,
-      quantity: cart.items.reduce((acc, item) => acc + item.quantity, 0),
-      shipping: {
-        country: formData.country,
-        phone: formData.phone,
-        zip: formData.zip,
-        state: formData.state,
-        city: formData.city,
-        address: formData.address,
-        name: `${formData.firstName} ${formData.lastName}`,
-        email: formData.email,
-      },
-    };
-
-    console.log("orderPayload", orderPayload);
-    if (paymentMethod === "card") {
-      orderPayload.cardDetails = {
-        cardNumber: formData.cardNumber,
-        expiry: formData.expiry,
-        cvv: formData.cvv,
-        cardName: formData.cardName,
-      };
-    }
-
     try {
+      // Save shipping address if it doesn't exist as default
+      if (userId && !defaultAddressData?.data) {
+        const addressData = {
+          name: `${formData.firstName} ${formData.lastName}`,
+          address: formData.address,
+          city: formData.city,
+          state: formData.state,
+          zip: formData.zip,
+          country: formData.country,
+          phone: formData.phone,
+          isDefault: true,
+        };
+
+        console.log('💾 [Checkout] Saving shipping address:', addressData);
+        await createShippingAddress(addressData).unwrap();
+        console.log('✅ [Checkout] Shipping address saved successfully');
+      }
+
+      const orderPayload: any = {
+        user: userObj._id,
+        productID: productIds,
+        paymentMethod,
+        totalPrice: adjustedTotalPrice,
+        quantity: cart.items.reduce((acc, item) => acc + item.quantity, 0),
+        shipping: {
+          _id: defaultAddressData?.data?._id,
+          country: formData.country,
+          phone: formData.phone,
+          zip: formData.zip,
+          state: formData.state,
+          city: formData.city,
+          address: formData.address,
+          name: `${formData.firstName} ${formData.lastName}`,
+          email: formData.email,
+        },
+      };
+
+      console.log("orderPayload", orderPayload);
+      if (paymentMethod === "card") {
+        orderPayload.cardDetails = {
+          cardNumber: formData.cardNumber,
+          expiry: formData.expiry,
+          cvv: formData.cvv,
+          cardName: formData.cardName,
+        };
+      }
+
       const response = await purchaseProduct(orderPayload).unwrap();
       if (response?.success) {
         router.push("/account");
       }
     } catch (err) {
-      console.error("Failed to purchase", err);
+      console.error("Failed to process checkout:", err);
     }
   };
 
@@ -111,6 +187,9 @@ export function CheckoutPage() {
                 <CardTitle className="flex items-center space-x-2">
                   <Truck className="h-5 w-5" />
                   <span>Shipping Information</span>
+                  {isLoadingAddress && (
+                    <span className="text-sm text-gray-500 ml-2">(Loading default address...)</span>
+                  )}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -119,18 +198,20 @@ export function CheckoutPage() {
                     <Label htmlFor="firstName">First Name</Label>
                     <Input
                       id="firstName"
-                      placeholder="John"
+                      placeholder={isLoadingAddress ? "Loading..." : "John"}
                       value={formData.firstName}
                       onChange={handleChange}
+                      disabled={isLoadingAddress}
                     />
                   </div>
                   <div>
                     <Label htmlFor="lastName">Last Name</Label>
                     <Input
                       id="lastName"
-                      placeholder="Doe"
+                      placeholder={isLoadingAddress ? "Loading..." : "Doe"}
                       value={formData.lastName}
                       onChange={handleChange}
+                      disabled={isLoadingAddress}
                     />
                   </div>
                 </div>
@@ -139,27 +220,30 @@ export function CheckoutPage() {
                   <Input
                     id="email"
                     type="email"
-                    placeholder="john.doe@example.com"
+                    placeholder={isLoadingAddress ? "Loading..." : "john.doe@example.com"}
                     value={formData.email}
                     onChange={handleChange}
+                    disabled={isLoadingAddress}
                   />
                 </div>
                 <div>
                   <Label htmlFor="phone">Phone Number</Label>
                   <Input
                     id="phone"
-                    placeholder="+1 (555) 123-4567"
+                    placeholder={isLoadingAddress ? "Loading..." : "+1 (555) 123-4567"}
                     value={formData.phone}
                     onChange={handleChange}
+                    disabled={isLoadingAddress}
                   />
                 </div>
                 <div>
                   <Label htmlFor="address">Street Address</Label>
                   <Input
                     id="address"
-                    placeholder="123 Main Street"
+                    placeholder={isLoadingAddress ? "Loading..." : "123 Main Street"}
                     value={formData.address}
                     onChange={handleChange}
+                    disabled={isLoadingAddress}
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
@@ -167,18 +251,20 @@ export function CheckoutPage() {
                     <Label htmlFor="city">City</Label>
                     <Input
                       id="city"
-                      placeholder="New York"
+                      placeholder={isLoadingAddress ? "Loading..." : "New York"}
                       value={formData.city}
                       onChange={handleChange}
+                      disabled={isLoadingAddress}
                     />
                   </div>
                   <div>
                     <Label htmlFor="state">State</Label>
                     <Input
                       id="state"
-                      placeholder="NY"
+                      placeholder={isLoadingAddress ? "Loading..." : "NY"}
                       value={formData.state}
                       onChange={handleChange}
+                      disabled={isLoadingAddress}
                     />
                   </div>
                 </div>
@@ -187,18 +273,20 @@ export function CheckoutPage() {
                     <Label htmlFor="zip">ZIP Code</Label>
                     <Input
                       id="zip"
-                      placeholder="10001"
+                      placeholder={isLoadingAddress ? "Loading..." : "10001"}
                       value={formData.zip}
                       onChange={handleChange}
+                      disabled={isLoadingAddress}
                     />
                   </div>
                   <div>
                     <Label htmlFor="country">Country</Label>
                     <Input
                       id="country"
-                      placeholder="United States"
+                      placeholder={isLoadingAddress ? "Loading..." : "United States"}
                       value={formData.country}
                       onChange={handleChange}
+                      disabled={isLoadingAddress}
                     />
                   </div>
                 </div>
@@ -261,8 +349,8 @@ export function CheckoutPage() {
                   </div>
 
                   <div className="flex items-center space-x-2 p-4 border rounded-lg">
-                    <RadioGroupItem value="cod" id="cod" />
-                    <Label htmlFor="cod" className="flex-1 cursor-pointer">
+                    <RadioGroupItem value="cash_on_delivery" id="cash_on_delivery" />
+                    <Label htmlFor="cash_on_delivery" className="flex-1 cursor-pointer">
                       <div className="flex items-center justify-between">
                         <span>Cash on Delivery</span>
                         <div className="w-16 h-5 bg-green-600 rounded text-white text-xs flex items-center justify-center">
@@ -403,10 +491,10 @@ export function CheckoutPage() {
 
                 <Button
                   onClick={checkoutHandler}
-                  disabled={isLoading}
+                  disabled={isLoading || isCreatingAddress}
                   className="text-sm md:text-base font-medium bg-black rounded-full w-full py-4 h-[54px] md:h-[60px] group"
                 >
-                  {isLoading ? "Placing..." : "Place Order"}
+                  {isLoading || isCreatingAddress ? "Processing..." : "Place Order"}
                 </Button>
 
                 <p className="text-xs text-gray-500 text-center">

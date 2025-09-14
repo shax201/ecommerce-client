@@ -1,6 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { useSelector } from "react-redux";
+import { RootState } from "@/lib/store";
+import { useGetUserOrdersQuery } from "@/lib/features/orders/ordersApi";
 import {
   Card,
   CardContent,
@@ -30,44 +33,26 @@ import {
   Clock,
   X,
   Menu,
+  Loader2,
 } from "lucide-react";
 
-// Mock data
-const mockOrders = [
-  {
-    id: "ORD-001",
-    date: "2024-01-15",
-    status: "delivered",
-    total: 299.99,
-    items: [
-      {
-        name: "Wireless Headphones",
-        image: "/wireless-headphones.png",
-        price: 299.99,
-      },
-    ],
-  },
-  {
-    id: "ORD-002",
-    date: "2024-01-10",
-    status: "shipped",
-    total: 199.99,
-    items: [
-      {
-        name: "Smart Watch",
-        image: "/smartwatch-lifestyle.png",
-        price: 199.99,
-      },
-    ],
-  },
-  {
-    id: "ORD-003",
-    date: "2024-01-05",
-    status: "processing",
-    total: 89.99,
-    items: [{ name: "Laptop Stand", image: "/laptop-stand.png", price: 89.99 }],
-  },
-];
+// Helper function to format order data
+const formatOrderData = (order: any) => {
+  return {
+    id: order._id || order.id,
+    orderNumber: order.orderNumber || `ORD-${order._id?.slice(-6)}`,
+    date: order.createdAt || order.date,
+    status: order.status || order.currentStatus || 'pending',
+    total: order.totalPrice || order.total || 0,
+    items: order.products || order.productID || [],
+    paymentMethod: order.paymentMethod || 'credit_card',
+    paymentStatus: order.paymentStatus || false,
+    trackingSteps: order.trackingSteps || [],
+    estimatedDeliveryDate: order.estimatedDeliveryDate,
+    notes: order.notes,
+    quantity: order.quantity || 1,
+  };
+};
 
 const mockWishlist = [
   {
@@ -174,6 +159,26 @@ export function AccountDashboard() {
   const [activeTab, setActiveTab] = useState("overview");
   const [showPassword, setShowPassword] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  
+  // Get user from Redux state
+  const { user, isAuthenticated } = useSelector((state: RootState) => state.auth);
+  
+  // Fetch user orders
+  const { 
+    data: ordersData, 
+    isLoading: ordersLoading, 
+    error: ordersError 
+  } = useGetUserOrdersQuery({}, {
+    skip: !isAuthenticated || !user,
+  });
+  
+  // Format orders data
+  const orders = ordersData?.data?.map(formatOrderData) || [];
+  
+  // Calculate statistics
+  const totalOrders = orders.length;
+  const totalSpent = orders.reduce((sum, order) => sum + order.total, 0);
+  const recentOrders = orders.slice(0, 3);
 
   const handleNavigation = (tabId: string) => {
     setActiveTab(tabId);
@@ -259,9 +264,15 @@ export function AccountDashboard() {
                       <Package className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                      <div className="text-2xl font-bold">24</div>
+                      <div className="text-2xl font-bold">
+                        {ordersLoading ? (
+                          <Loader2 className="h-6 w-6 animate-spin" />
+                        ) : (
+                          totalOrders
+                        )}
+                      </div>
                       <p className="text-xs text-muted-foreground">
-                        +2 from last month
+                        {ordersLoading ? "Loading..." : "Total orders"}
                       </p>
                     </CardContent>
                   </Card>
@@ -287,8 +298,16 @@ export function AccountDashboard() {
                       <CreditCard className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                      <div className="text-2xl font-bold">$2,847</div>
-                      <p className="text-xs text-muted-foreground">This year</p>
+                      <div className="text-2xl font-bold">
+                        {ordersLoading ? (
+                          <Loader2 className="h-6 w-6 animate-spin" />
+                        ) : (
+                          `$${totalSpent.toFixed(2)}`
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {ordersLoading ? "Loading..." : "Total spent"}
+                      </p>
                     </CardContent>
                   </Card>
                 </div>
@@ -301,37 +320,57 @@ export function AccountDashboard() {
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-4">
-                      {mockOrders.slice(0, 3).map((order) => (
-                        <div
-                          key={order.id}
-                          className="flex items-center justify-between p-4 border rounded-lg"
-                        >
-                          <div className="flex items-center gap-4">
-                            <img
-                              src={order.items[0].image || "/placeholder.svg"}
-                              alt={order.items[0].name}
-                              className="w-12 h-12 rounded-lg object-cover"
-                            />
-                            <div>
-                              <p className="font-medium">{order.id}</p>
-                              <p className="text-sm text-gray-500">
-                                {order.date}
-                              </p>
+                    {ordersLoading ? (
+                      <div className="flex items-center justify-center py-8">
+                        <Loader2 className="h-8 w-8 animate-spin" />
+                        <span className="ml-2">Loading orders...</span>
+                      </div>
+                    ) : ordersError ? (
+                      <div className="text-center py-8">
+                        <p className="text-red-500">Failed to load orders</p>
+                        <p className="text-sm text-gray-500 mt-2">
+                          Please try refreshing the page
+                        </p>
+                      </div>
+                    ) : recentOrders.length === 0 ? (
+                      <div className="text-center py-8">
+                        <Package className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                        <p className="text-gray-500">No orders yet</p>
+                        <p className="text-sm text-gray-400 mt-2">
+                          Your recent orders will appear here
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {recentOrders.map((order) => (
+                          <div
+                            key={order.id}
+                            className="flex items-center justify-between p-4 border rounded-lg"
+                          >
+                            <div className="flex items-center gap-4">
+                              <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
+                                <Package className="h-6 w-6 text-gray-400" />
+                              </div>
+                              <div>
+                                <p className="font-medium">{order.orderNumber}</p>
+                                <p className="text-sm text-gray-500">
+                                  {new Date(order.date).toLocaleDateString()}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-4">
+                              <Badge className={getStatusColor(order.status)}>
+                                {getStatusIcon(order.status)}
+                                <span className="ml-1 capitalize">
+                                  {order.status}
+                                </span>
+                              </Badge>
+                              <p className="font-medium">${order.total.toFixed(2)}</p>
                             </div>
                           </div>
-                          <div className="flex items-center gap-4">
-                            <Badge className={getStatusColor(order.status)}>
-                              {getStatusIcon(order.status)}
-                              <span className="ml-1 capitalize">
-                                {order.status}
-                              </span>
-                            </Badge>
-                            <p className="font-medium">${order.total}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                        ))}
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               </div>
@@ -348,62 +387,104 @@ export function AccountDashboard() {
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-4">
-                      {mockOrders.map((order) => (
-                        <div key={order.id} className="border rounded-lg p-6">
-                          <div className="flex items-center justify-between mb-4">
-                            <div>
-                              <h3 className="font-semibold">{order.id}</h3>
-                              <p className="text-sm text-gray-500">
-                                Ordered on {order.date}
-                              </p>
-                            </div>
-                            <Badge className={getStatusColor(order.status)}>
-                              {getStatusIcon(order.status)}
-                              <span className="ml-1 capitalize">
-                                {order.status}
-                              </span>
-                            </Badge>
-                          </div>
-                          <div className="space-y-3">
-                            {order.items.map((item, index) => (
-                              <div
-                                key={index}
-                                className="flex items-center gap-4"
-                              >
-                                <img
-                                  src={item.image || "/placeholder.svg"}
-                                  alt={item.name}
-                                  className="w-16 h-16 rounded-lg object-cover"
-                                />
-                                <div className="flex-1">
-                                  <p className="font-medium">{item.name}</p>
-                                  <p className="text-sm text-gray-500">
-                                    ${item.price}
-                                  </p>
-                                </div>
+                    {ordersLoading ? (
+                      <div className="flex items-center justify-center py-8">
+                        <Loader2 className="h-8 w-8 animate-spin" />
+                        <span className="ml-2">Loading orders...</span>
+                      </div>
+                    ) : ordersError ? (
+                      <div className="text-center py-8">
+                        <p className="text-red-500">Failed to load orders</p>
+                        <p className="text-sm text-gray-500 mt-2">
+                          Please try refreshing the page
+                        </p>
+                      </div>
+                    ) : orders.length === 0 ? (
+                      <div className="text-center py-8">
+                        <Package className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                        <p className="text-gray-500">No orders found</p>
+                        <p className="text-sm text-gray-400 mt-2">
+                          Your order history will appear here
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {orders.map((order) => (
+                          <div key={order.id} className="border rounded-lg p-6">
+                            <div className="flex items-center justify-between mb-4">
+                              <div>
+                                <h3 className="font-semibold">{order.orderNumber}</h3>
+                                <p className="text-sm text-gray-500">
+                                  Ordered on {new Date(order.date).toLocaleDateString()}
+                                </p>
                               </div>
-                            ))}
-                          </div>
-                          <Separator className="my-4" />
-                          <div className="flex items-center justify-between">
-                            <p className="font-semibold">
-                              Total: ${order.total}
-                            </p>
-                            <div className="flex gap-2">
-                              <Button variant="outline" size="sm">
-                                View Details
-                              </Button>
-                              {order.status === "delivered" && (
-                                <Button variant="outline" size="sm">
-                                  Reorder
-                                </Button>
+                              <Badge className={getStatusColor(order.status)}>
+                                {getStatusIcon(order.status)}
+                                <span className="ml-1 capitalize">
+                                  {order.status}
+                                </span>
+                              </Badge>
+                            </div>
+                            <div className="space-y-3">
+                              {Array.isArray(order.items) && order.items.length > 0 ? (
+                                order.items.map((item: any, index: number) => (
+                                  <div
+                                    key={index}
+                                    className="flex items-center gap-4"
+                                  >
+                                    <div className="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center">
+                                      <Package className="h-6 w-6 text-gray-400" />
+                                    </div>
+                                    <div className="flex-1">
+                                      <p className="font-medium">
+                                        {item.name || item.title || `Product ${index + 1}`}
+                                      </p>
+                                      <p className="text-sm text-gray-500">
+                                        ${item.price || 0}
+                                      </p>
+                                    </div>
+                                  </div>
+                                ))
+                              ) : (
+                                <div className="flex items-center gap-4">
+                                  <div className="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center">
+                                    <Package className="h-6 w-6 text-gray-400" />
+                                  </div>
+                                  <div className="flex-1">
+                                    <p className="font-medium">Order Items</p>
+                                    <p className="text-sm text-gray-500">
+                                      Quantity: {order.quantity || 1}
+                                    </p>
+                                  </div>
+                                </div>
                               )}
                             </div>
+                            <Separator className="my-4" />
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="font-semibold">
+                                  Total: ${order.total.toFixed(2)}
+                                </p>
+                                <p className="text-sm text-gray-500">
+                                  Payment: {order.paymentMethod?.replace('_', ' ')} 
+                                  {order.paymentStatus ? ' ✓' : ' ✗'}
+                                </p>
+                              </div>
+                              <div className="flex gap-2">
+                                <Button variant="outline" size="sm">
+                                  View Details
+                                </Button>
+                                {order.status === "delivered" && (
+                                  <Button variant="outline" size="sm">
+                                    Reorder
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
+                        ))}
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               </div>

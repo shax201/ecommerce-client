@@ -70,7 +70,7 @@ export function useDynamicMenuISR({
       processedInitialMenusRef.current = initialMenusKey;
     } else {
       // Fallback to client-side fetching if no ISR data
-      loadMenus();
+      loadAllMenus();
     }
   }, [initialMenusKey, initialPaginationKey]);
 
@@ -82,7 +82,7 @@ export function useDynamicMenuISR({
     }
 
     if (initialMenus.length === 0) {
-      loadMenus();
+      loadAllMenus();
       processedFiltersRef.current = filtersKey;
     }
   }, [filtersKey, initialMenus.length]);
@@ -110,7 +110,6 @@ export function useDynamicMenuISR({
           setMenus([]);
         }
       } catch (err) {
-        console.error("Error fetching menus:", err);
         setError("Failed to load menus");
         setMenus([]);
       } finally {
@@ -134,7 +133,6 @@ export function useDynamicMenuISR({
         setError(response.message || "Menu not found");
       }
     } catch (err) {
-      console.error("Error fetching menu:", err);
       setError("Failed to load menu");
       setMenus([]);
     } finally {
@@ -152,14 +150,14 @@ export function useDynamicMenuISR({
 
   const loadMore = useCallback(
     (page: number) => {
-      loadMenus(page);
+      loadAllMenus(page);
     },
-    [loadMenus]
+    [loadAllMenus]
   );
 
   const refresh = useCallback(() => {
-    loadMenus(1);
-  }, [loadMenus]);
+    loadAllMenus(1);
+  }, [loadAllMenus]);
 
   return {
     menus,
@@ -178,7 +176,7 @@ export function useDynamicMenuISR({
     // Actions
     loadMore,
     refresh,
-    loadMenus,
+    loadAllMenus,
     loadSingleMenu,
   };
 }

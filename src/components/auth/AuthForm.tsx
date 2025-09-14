@@ -1,0 +1,600 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  Eye,
+  EyeOff,
+  Mail,
+  Lock,
+  User,
+  AlertCircle,
+  CheckCircle2,
+  Loader2,
+} from "lucide-react";
+import {
+  useLoginMutation,
+  useSignupMutation,
+  useForgotPasswordMutation,
+  setUser,
+  setError,
+  clearError,
+  initializeAuth,
+} from "@/lib/features/auth";
+import { useAppDispatch, useAppSelector } from "@/lib/hooks/redux";
+import { useRouter } from "next/navigation";
+
+export default function AuthForm() {
+  const [mode, setMode] = useState<"signin" | "signup" | "forgot">("signin");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const router = useRouter();
+
+  // Redux hooks
+  const dispatch = useAppDispatch();
+  const { user, isAuthenticated, isLoading, error } = useAppSelector((state) => state.auth);
+
+  // Redux mutations
+  const [login, { isLoading: isLoginLoading, error: loginError }] = useLoginMutation();
+  const [signup, { isLoading: isSignupLoading, error: signupError }] = useSignupMutation();
+  const [forgotPassword, { isLoading: isForgotPasswordLoading, error: forgotPasswordError }] = useForgotPasswordMutation();
+
+  // Form state
+  const [formData, setFormData] = useState({
+    firstName: "",
+    lastName: "",
+    phone: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+  });
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [successMessage, setSuccessMessage] = useState("");
+
+  // Initialize auth state on component mount
+  useEffect(() => {
+    dispatch(initializeAuth());
+  }, [dispatch]);
+
+
+
+  const isPending = isLoginLoading || isSignupLoading || isForgotPasswordLoading;
+
+  // Form handlers
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+    // Clear error when user starts typing
+    if (formErrors[name]) {
+      setFormErrors(prev => ({ ...prev, [name]: "" }));
+    }
+  };
+
+  const validateForm = () => {
+    const errors: Record<string, string> = {};
+
+    if (mode === "signup") {
+      if (!formData.firstName) errors.firstName = "First name is required";
+      if (!formData.lastName) errors.lastName = "Last name is required";
+      if (!formData.phone) errors.phone = "Phone number is required";
+      if (!formData.password) errors.password = "Password is required";
+      if (formData.password !== formData.confirmPassword) {
+        errors.confirmPassword = "Passwords do not match";
+      }
+    }
+
+    if (!formData.email) {
+      errors.email = "Email is required";
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      errors.email = "Please enter a valid email address";
+    }
+
+    if (mode !== "forgot" && !formData.password) {
+      errors.password = "Password is required";
+    }
+
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!validateForm()) return;
+
+    try {
+      dispatch(clearError());
+      const result = await login({
+        email: formData.email,
+        password: formData.password,
+      }).unwrap();
+
+      if (result.success) {
+        dispatch(setUser(result.data.client));
+        setSuccessMessage("Login successful!");
+        router.push("/");
+      }
+    } catch (error: any) {
+      dispatch(setError(error.data?.message || "Login failed"));
+    }
+  };
+
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!validateForm()) return;
+
+    try {
+      dispatch(clearError());
+      const result = await signup({
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        phone: parseInt(formData.phone),
+        email: formData.email,
+        password: formData.password,
+      }).unwrap();
+
+      if (result.success) {
+        dispatch(setUser(result.data.client));
+        setSuccessMessage("Account created successfully!");
+        router.push("/");
+      }
+    } catch (error: any) {
+      dispatch(setError(error.data?.message || "Signup failed"));
+    }
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!validateForm()) return;
+
+    try {
+      dispatch(clearError());
+      const result = await forgotPassword({ email: formData.email }).unwrap();
+      setSuccessMessage(result.message);
+    } catch (error: any) {
+      dispatch(setError(error.data?.message || "Failed to send reset email"));
+    }
+  };
+
+  const getTitle = () => {
+    switch (mode) {
+      case "signup":
+        return "Create Account";
+      case "signin":
+        return "Welcome Back";
+      case "forgot":
+        return "Reset Password";
+    }
+  };
+
+  const getDescription = () => {
+    switch (mode) {
+      case "signup":
+        return "Sign up to get started with your account";
+      case "signin":
+        return "Sign in to your account to continue";
+      case "forgot":
+        return "Enter your email to receive a password reset link";
+    }
+  };
+
+
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center p-4">
+      <div className="w-full max-w-md">
+        <Card className="shadow-xl border-0 bg-white/80 backdrop-blur-sm">
+          <CardHeader className="space-y-1 text-center pb-6">
+            <div className="mx-auto w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mb-4">
+              <User className="w-6 h-6 text-emerald-600" />
+            </div>
+            <CardTitle className="text-2xl font-bold text-slate-900">
+              {getTitle()}
+            </CardTitle>
+            <CardDescription className="text-slate-600">
+              {getDescription()}
+            </CardDescription>
+          </CardHeader>
+
+          <CardContent className="space-y-4">
+            {/* Success Messages */}
+            {successMessage && (
+              <Alert className="border-emerald-200 bg-emerald-50">
+                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                <AlertDescription className="text-emerald-800">
+                  {successMessage}
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {/* Error Messages */}
+            {error && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  {error}
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {/* Sign Up Form */}
+            {mode === "signup" && (
+              <form onSubmit={handleSignup} className="space-y-4">
+                {/* First Name Field */}
+                <div className="space-y-2">
+                  <Label htmlFor="firstName" className="text-sm font-medium text-slate-700">
+                    First Name
+                  </Label>
+                  <Input
+                    id="firstName"
+                    name="firstName"
+                    type="text"
+                    value={formData.firstName}
+                    onChange={handleInputChange}
+                    placeholder="Enter your first name"
+                    className={`pl-3 ${formErrors.firstName ? "border-red-500 focus:border-red-500" : "border-slate-200 focus:border-emerald-500"}`}
+                    disabled={isPending}
+                    required
+                  />
+                  {formErrors.firstName && (
+                    <p className="text-sm text-red-600">{formErrors.firstName}</p>
+                  )}
+                </div>
+
+                {/* Last Name Field */}
+                <div className="space-y-2">
+                  <Label htmlFor="lastName" className="text-sm font-medium text-slate-700">
+                    Last Name
+                  </Label>
+                  <Input
+                    id="lastName"
+                    name="lastName"
+                    type="text"
+                    value={formData.lastName}
+                    onChange={handleInputChange}
+                    placeholder="Enter your last name"
+                    className={`pl-3 ${formErrors.lastName ? "border-red-500 focus:border-red-500" : "border-slate-200 focus:border-emerald-500"}`}
+                    disabled={isPending}
+                    required
+                  />
+                  {formErrors.lastName && (
+                    <p className="text-sm text-red-600">{formErrors.lastName}</p>
+                  )}
+                </div>
+
+                {/* Phone Field */}
+                <div className="space-y-2">
+                  <Label htmlFor="phone" className="text-sm font-medium text-slate-700">
+                    Phone Number
+                  </Label>
+                  <Input
+                    id="phone"
+                    name="phone"
+                    type="tel"
+                    value={formData.phone}
+                    onChange={handleInputChange}
+                    placeholder="Enter your phone number"
+                    className={`pl-3 ${formErrors.phone ? "border-red-500 focus:border-red-500" : "border-slate-200 focus:border-emerald-500"}`}
+                    disabled={isPending}
+                    required
+                  />
+                  {formErrors.phone && (
+                    <p className="text-sm text-red-600">{formErrors.phone}</p>
+                  )}
+                </div>
+
+                {/* Email Field */}
+                <div className="space-y-2">
+                  <Label htmlFor="email" className="text-sm font-medium text-slate-700">
+                    Email Address
+                  </Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                    <Input
+                      id="email"
+                      name="email"
+                      type="email"
+                      value={formData.email}
+                      onChange={handleInputChange}
+                      placeholder="Enter your email"
+                      className={`pl-10 ${formErrors.email ? "border-red-500 focus:border-red-500" : "border-slate-200 focus:border-emerald-500"}`}
+                      disabled={isPending}
+                      required
+                    />
+                  </div>
+                  {formErrors.email && (
+                    <p className="text-sm text-red-600">{formErrors.email}</p>
+                  )}
+                </div>
+
+                {/* Password Field */}
+                <div className="space-y-2">
+                  <Label htmlFor="password" className="text-sm font-medium text-slate-700">
+                    Password
+                  </Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                    <Input
+                      id="password"
+                      name="password"
+                      type={showPassword ? "text" : "password"}
+                      value={formData.password}
+                      onChange={handleInputChange}
+                      placeholder="Enter your password"
+                      className={`pl-10 pr-10 ${formErrors.password ? "border-red-500 focus:border-red-500" : "border-slate-200 focus:border-emerald-500"}`}
+                      disabled={isPending}
+                      required
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                      onClick={() => setShowPassword(!showPassword)}
+                      disabled={isPending}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4 text-slate-400" />
+                      ) : (
+                        <Eye className="h-4 w-4 text-slate-400" />
+                      )}
+                    </Button>
+                  </div>
+                  {formErrors.password && (
+                    <p className="text-sm text-red-600">{formErrors.password}</p>
+                  )}
+                </div>
+
+                {/* Confirm Password Field */}
+                <div className="space-y-2">
+                  <Label htmlFor="confirmPassword" className="text-sm font-medium text-slate-700">
+                    Confirm Password
+                  </Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                    <Input
+                      id="confirmPassword"
+                      name="confirmPassword"
+                      type={showConfirmPassword ? "text" : "password"}
+                      value={formData.confirmPassword}
+                      onChange={handleInputChange}
+                      placeholder="Confirm your password"
+                      className={`pl-10 pr-10 ${formErrors.confirmPassword ? "border-red-500 focus:border-red-500" : "border-slate-200 focus:border-emerald-500"}`}
+                      disabled={isPending}
+                      required
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      disabled={isPending}
+                    >
+                      {showConfirmPassword ? (
+                        <EyeOff className="h-4 w-4 text-slate-400" />
+                      ) : (
+                        <Eye className="h-4 w-4 text-slate-400" />
+                      )}
+                    </Button>
+                  </div>
+                  {formErrors.confirmPassword && (
+                    <p className="text-sm text-red-600">{formErrors.confirmPassword}</p>
+                  )}
+                </div>
+
+                {/* Submit Button */}
+                <Button
+                  type="submit"
+                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+                  disabled={isPending}
+                >
+                  {isPending ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Creating Account...
+                    </>
+                  ) : (
+                    "Create Account"
+                  )}
+                </Button>
+              </form>
+            )}
+
+            {/* Sign In Form */}
+            {mode === "signin" && (
+              <form onSubmit={handleLogin} className="space-y-4">
+                {/* Email Field */}
+                <div className="space-y-2">
+                  <Label htmlFor="email" className="text-sm font-medium text-slate-700">
+                    Email Address
+                  </Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                    <Input
+                      id="email"
+                      name="email"
+                      type="email"
+                      value={formData.email}
+                      onChange={handleInputChange}
+                      placeholder="Enter your email"
+                      className={`pl-10 ${formErrors.email ? "border-red-500 focus:border-red-500" : "border-slate-200 focus:border-emerald-500"}`}
+                      disabled={isPending}
+                      required
+                    />
+                  </div>
+                  {formErrors.email && (
+                    <p className="text-sm text-red-600">{formErrors.email}</p>
+                  )}
+                </div>
+
+                {/* Password Field */}
+                <div className="space-y-2">
+                  <Label htmlFor="password" className="text-sm font-medium text-slate-700">
+                    Password
+                  </Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                    <Input
+                      id="password"
+                      name="password"
+                      type={showPassword ? "text" : "password"}
+                      value={formData.password}
+                      onChange={handleInputChange}
+                      placeholder="Enter your password"
+                      className={`pl-10 pr-10 ${formErrors.password ? "border-red-500 focus:border-red-500" : "border-slate-200 focus:border-emerald-500"}`}
+                      disabled={isPending}
+                      required
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                      onClick={() => setShowPassword(!showPassword)}
+                      disabled={isPending}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4 text-slate-400" />
+                      ) : (
+                        <Eye className="h-4 w-4 text-slate-400" />
+                      )}
+                    </Button>
+                  </div>
+                  {formErrors.password && (
+                    <p className="text-sm text-red-600">{formErrors.password}</p>
+                  )}
+                </div>
+
+                {/* Submit Button */}
+                <Button
+                  type="submit"
+                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+                  disabled={isPending}
+                >
+                  {isPending ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Signing In...
+                    </>
+                  ) : (
+                    "Sign In"
+                  )}
+                </Button>
+              </form>
+            )}
+
+            {/* Forgot Password Form */}
+            {mode === "forgot" && (
+              <form onSubmit={handleForgotPassword} className="space-y-4">
+                {/* Email Field */}
+                <div className="space-y-2">
+                  <Label htmlFor="email" className="text-sm font-medium text-slate-700">
+                    Email Address
+                  </Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                    <Input
+                      id="email"
+                      name="email"
+                      type="email"
+                      value={formData.email}
+                      onChange={handleInputChange}
+                      placeholder="Enter your email"
+                      className={`pl-10 ${formErrors.email ? "border-red-500 focus:border-red-500" : "border-slate-200 focus:border-emerald-500"}`}
+                      disabled={isPending}
+                      required
+                    />
+                  </div>
+                  {formErrors.email && (
+                    <p className="text-sm text-red-600">{formErrors.email}</p>
+                  )}
+                </div>
+
+                {/* Submit Button */}
+                <Button
+                  type="submit"
+                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+                  disabled={isPending}
+                >
+                  {isPending ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Sending Reset Link...
+                    </>
+                  ) : (
+                    "Send Reset Link"
+                  )}
+                </Button>
+              </form>
+            )}
+
+            {/* Mode Switcher */}
+            <div className="text-center space-y-2">
+              {mode === "signin" && (
+                <>
+                  <Button
+                    variant="link"
+                    onClick={() => setMode("forgot")}
+                    className="text-slate-600 hover:text-emerald-600"
+                    disabled={isPending}
+                  >
+                    Forgot your password?
+                  </Button>
+                  <p className="text-sm text-slate-600">
+                    Don't have an account?{" "}
+                    <Button
+                      variant="link"
+                      onClick={() => setMode("signup")}
+                      className="text-emerald-600 hover:text-emerald-700 p-0 h-auto"
+                      disabled={isPending}
+                    >
+                      Sign up
+                    </Button>
+                  </p>
+                </>
+              )}
+
+              {mode === "signup" && (
+                <p className="text-sm text-slate-600">
+                  Already have an account?{" "}
+                  <Button
+                    variant="link"
+                    onClick={() => setMode("signin")}
+                    className="text-emerald-600 hover:text-emerald-700 p-0 h-auto"
+                    disabled={isPending}
+                  >
+                    Sign in
+                  </Button>
+                </p>
+              )}
+
+              {mode === "forgot" && (
+                <p className="text-sm text-slate-600">
+                  Remember your password?{" "}
+                  <Button
+                    variant="link"
+                    onClick={() => setMode("signin")}
+                    className="text-emerald-600 hover:text-emerald-700 p-0 h-auto"
+                    disabled={isPending}
+                  >
+                    Sign in
+                  </Button>
+                </p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}

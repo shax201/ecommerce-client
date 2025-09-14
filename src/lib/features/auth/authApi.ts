@@ -1,0 +1,162 @@
+import { apiSlice } from "../api/apiSlice";
+import { setAuthCookie, clearAuthCookie } from "./authActions";
+
+// ===== TYPES =====
+
+export interface User {
+  _id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  role: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AuthResponse {
+  success: boolean;
+  message: string;
+  data: {
+    client: User;
+    token: string;
+  };
+}
+
+export interface LoginCredentials {
+  email: string;
+  password: string;
+}
+
+export interface SignupCredentials {
+  firstName: string;
+  lastName: string;
+  phone: number;
+  email: string;
+  password: string;
+}
+
+export interface AuthState {
+  success?: boolean;
+  message?: string;
+  errors?: {
+    firstname?: string;
+    lastname?: string;
+    phone?: string;
+    email?: string;
+    password?: string;
+    confirmPassword?: string;
+    general?: string;
+  };
+  data?: any;
+}
+
+// ===== API ENDPOINTS =====
+
+export const authApi = apiSlice.injectEndpoints({
+  endpoints: (builder) => ({
+    // Login user
+    login: builder.mutation<AuthResponse, LoginCredentials>({
+      query: (credentials) => ({
+        url: "/clients/login",
+        method: "POST",
+        body: credentials,
+      }),
+      transformResponse: async (response: AuthResponse) => {
+        // Store token and user data in localStorage after successful login
+        if (typeof window !== 'undefined' && response.success) {
+          localStorage.setItem("user-token", response.data.token);
+          localStorage.setItem("client", JSON.stringify(response.data.client));
+          console.log("✅ [Auth API] Token and user data stored in localStorage after login");
+          
+          // Set cookie for middleware
+          try {
+            await setAuthCookie(response.data.token);
+          } catch (error) {
+            console.error("❌ [Auth API] Failed to set cookie:", error);
+          }
+        }
+        return response;
+      },
+    }),
+
+    // Signup user
+    signup: builder.mutation<AuthResponse, SignupCredentials>({
+      query: (credentials) => ({
+        url: "/clients/",
+        method: "POST",
+        body: credentials,
+      }),
+      transformResponse: async (response: AuthResponse) => {
+        // Store token and user data in localStorage after successful signup
+        if (typeof window !== 'undefined' && response.success) {
+          localStorage.setItem("user-token", response.data.token);
+          localStorage.setItem("client", JSON.stringify(response.data.client));
+          console.log("✅ [Auth API] Token and user data stored in localStorage after signup");
+          
+          // Set cookie for middleware
+          try {
+            await setAuthCookie(response.data.token);
+          } catch (error) {
+            console.error("❌ [Auth API] Failed to set cookie:", error);
+          }
+        }
+        return response;
+      },
+    }),
+
+    // Get current user (if token exists)
+    getCurrentUser: builder.query<User | null, void>({
+      query: () => ({
+        url: "/clients/me",
+        method: "GET",
+      }),
+      transformResponse: (response: { success: boolean; data: User }) => {
+        return response.success ? response.data : null;
+      },
+    }),
+
+    // Logout user
+    logout: builder.mutation<{ success: boolean; message: string }, void>({
+      query: () => ({
+        url: "/clients/logout",
+        method: "POST",
+      }),
+      transformResponse: async () => {
+        // Clear localStorage on logout
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem("user-token");
+          localStorage.removeItem("client");
+          console.log("✅ [Auth API] User data cleared from localStorage");
+          
+          // Clear cookie
+          try {
+            await clearAuthCookie();
+          } catch (error) {
+            console.error("❌ [Auth API] Failed to clear cookie:", error);
+          }
+        }
+        return { success: true, message: "Logged out successfully" };
+      },
+    }),
+
+    // Forgot password
+    forgotPassword: builder.mutation<{ success: boolean; message: string }, { email: string }>({
+      query: ({ email }) => ({
+        url: "/clients/forgot-password",
+        method: "POST",
+        body: { email },
+      }),
+    }),
+  }),
+});
+
+// ===== EXPORTED HOOKS =====
+
+export const {
+  useLoginMutation,
+  useSignupMutation,
+  useGetCurrentUserQuery,
+  useLogoutMutation,
+  useForgotPasswordMutation,
+} = authApi;

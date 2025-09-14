@@ -50,13 +50,13 @@ export function useProductISR({ productId, initialProduct }: ProductISRProps) {
       setLoading(true);
       setError(null);
 
-      const response: SingleProductResponse = await getSingleProduct(productId);
+      const product = await getSingleProduct(productId);
 
-      if (response.success && response.data) {
-        setProduct(response.data);
+      if (product) {
+        setProduct(product);
       } else {
         setProduct(null);
-        setError(response.message || "Product not found");
+        setError("Product not found");
       }
     } catch (err) {
       console.error("Error fetching product:", err);
