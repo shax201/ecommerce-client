@@ -1,7 +1,12 @@
 "use server";
 
 import { revalidateTag } from "next/cache";
+import { unstable_cache } from "next/cache";
 import { ISR_TAGS } from "@/lib/isr-tags";
+
+const getBackendUrl = () => {
+  return process.env.NEXT_PUBLIC_BACKEND_URL || process.env.BACKEND_URL;
+};
 import {
   Coupon,
   CouponCreateData,
@@ -489,6 +494,375 @@ export async function bulkDeleteCoupons(couponIds: string[]): Promise<CouponResp
       success: false,
       message: "An error occurred during bulk deletion.",
       error: "Bulk operation error",
+    };
+  }
+}
+
+// ===== ISR-ENABLED FUNCTIONS =====
+
+// Cached function for fetching all coupons with pagination and filters
+export const getCouponsISR = unstable_cache(
+  async (options: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    isActive?: boolean;
+  } = {}): Promise<CouponsListResponse> => {
+    try {
+      const params = new URLSearchParams({
+        page: (options.page || 1).toString(),
+        limit: (options.limit || 10).toString(),
+      });
+
+      if (options.search) {
+        params.append('search', options.search);
+      }
+
+      if (options.isActive !== undefined) {
+        params.append('isActive', options.isActive.toString());
+      }
+
+      const response = await fetch(`${getBackendUrl()}/coupons?${params.toString()}`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        next: { revalidate: 60 },
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        return {
+          success: true,
+          data: data.data,
+        };
+      } else {
+        return {
+          success: false,
+          error: data.error || "Failed to retrieve coupons.",
+        };
+      }
+    } catch (error) {
+      console.error("Error fetching coupons:", error);
+      return {
+        success: false,
+        error: "Network error",
+      };
+    }
+  },
+  ["coupons"],
+  {
+    tags: [ISR_TAGS.COUPONS],
+    revalidate: 60, // 1 minute
+  }
+);
+
+// Cached function for fetching single coupon
+export const getCouponByIdISR = unstable_cache(
+  async (couponId: string): Promise<CouponResponse> => {
+    try {
+      const response = await fetch(`${getBackendUrl()}/coupons/${couponId}`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        next: { revalidate: 60 },
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        return {
+          success: true,
+          message: "Coupon retrieved successfully",
+          data: data.data,
+        };
+      } else {
+        return {
+          success: false,
+          message: data.error || "Failed to retrieve coupon.",
+          error: data.error,
+        };
+      }
+    } catch (error) {
+      console.error("Error fetching coupon:", error);
+      return {
+        success: false,
+        message: "An error occurred while retrieving the coupon.",
+        error: "Network error",
+      };
+    }
+  },
+  ["coupon"],
+  {
+    tags: [ISR_TAGS.COUPONS],
+    revalidate: 60, // 1 minute
+  }
+);
+
+// Cached function for fetching active coupons
+export const getActiveCouponsISR = unstable_cache(
+  async (): Promise<Coupon[]> => {
+    try {
+      const response = await fetch(`${getBackendUrl()}/coupons/active/list`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        next: { revalidate: 30 },
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        return data.data || [];
+      } else {
+        console.error("Failed to fetch active coupons:", data.error);
+        return [];
+      }
+    } catch (error) {
+      console.error("Error fetching active coupons:", error);
+      return [];
+    }
+  },
+  ["active-coupons"],
+  {
+    tags: [ISR_TAGS.COUPONS],
+    revalidate: 30, // 30 seconds for active coupons (more dynamic)
+  }
+);
+
+// Cached function for coupon validation
+export const validateCouponISR = unstable_cache(
+  async (validationData: CouponValidationRequest): Promise<CouponValidationResponse> => {
+    try {
+      const response = await fetch(`${getBackendUrl()}/coupons/validate`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(validationData),
+        next: { revalidate: 10 }, // Very short cache for validation
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        return data.data;
+      } else {
+        return {
+          isValid: false,
+          error: data.error || "Failed to validate coupon.",
+        };
+      }
+    } catch (error) {
+      console.error("Error validating coupon:", error);
+      return {
+        isValid: false,
+        error: "Network error occurred while validating coupon.",
+      };
+    }
+  },
+  ["coupon-validation"],
+  {
+    tags: [ISR_TAGS.COUPONS],
+    revalidate: 10, // 10 seconds for validation (very short cache)
+  }
+);
+
+// ===== SERVER ACTIONS FOR CACHE INVALIDATION =====
+
+// Server action to handle coupon creation with cache invalidation
+export async function createCouponWithCacheInvalidation(couponData: CouponCreateData) {
+  try {
+    const response = await fetch(`${getBackendUrl()}/coupons`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(couponData),
+    });
+
+    const data = await response.json();
+
+    if (response.ok && data.success) {
+      // Invalidate ISR cache after successful creation
+      revalidateTag(ISR_TAGS.COUPONS);
+      
+      return {
+        success: true,
+        message: "Coupon created successfully!",
+        data: data.data,
+      };
+    } else {
+      return {
+        success: false,
+        message: data.error || "Failed to create coupon.",
+        error: data.error,
+      };
+    }
+  } catch (error) {
+    console.error("Error creating coupon:", error);
+    return {
+      success: false,
+      message: "An error occurred while creating the coupon.",
+      error: "Network error",
+    };
+  }
+}
+
+// Server action to handle coupon update with cache invalidation
+export async function updateCouponWithCacheInvalidation(couponId: string, updateData: CouponUpdateData) {
+  try {
+    const response = await fetch(`${getBackendUrl()}/coupons/${couponId}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(updateData),
+    });
+
+    const data = await response.json();
+
+    if (response.ok && data.success) {
+      // Invalidate ISR cache after successful update
+      revalidateTag(ISR_TAGS.COUPONS);
+      revalidateTag(`coupon-${couponId}`);
+      
+      return {
+        success: true,
+        message: "Coupon updated successfully!",
+        data: data.data,
+      };
+    } else {
+      return {
+        success: false,
+        message: data.error || "Failed to update coupon.",
+        error: data.error,
+      };
+    }
+  } catch (error) {
+    console.error("Error updating coupon:", error);
+    return {
+      success: false,
+      message: "An error occurred while updating the coupon.",
+      error: "Network error",
+    };
+  }
+}
+
+// Server action to handle coupon activation with cache invalidation
+export async function activateCouponWithCacheInvalidation(couponId: string) {
+  try {
+    const response = await fetch(`${getBackendUrl()}/coupons/${couponId}/activate`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    const data = await response.json();
+
+    if (response.ok && data.success) {
+      // Invalidate ISR cache after successful activation
+      revalidateTag(ISR_TAGS.COUPONS);
+      revalidateTag(`coupon-${couponId}`);
+      
+      return {
+        success: true,
+        message: "Coupon activated successfully!",
+        data: data.data,
+      };
+    } else {
+      return {
+        success: false,
+        message: data.error || "Failed to activate coupon.",
+        error: data.error,
+      };
+    }
+  } catch (error) {
+    console.error("Error activating coupon:", error);
+    return {
+      success: false,
+      message: "An error occurred while activating the coupon.",
+      error: "Network error",
+    };
+  }
+}
+
+// Server action to handle coupon deactivation with cache invalidation
+export async function deactivateCouponWithCacheInvalidation(couponId: string) {
+  try {
+    const response = await fetch(`${getBackendUrl()}/coupons/${couponId}/deactivate`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    const data = await response.json();
+
+    if (response.ok && data.success) {
+      // Invalidate ISR cache after successful deactivation
+      revalidateTag(ISR_TAGS.COUPONS);
+      revalidateTag(`coupon-${couponId}`);
+      
+      return {
+        success: true,
+        message: "Coupon deactivated successfully!",
+        data: data.data,
+      };
+    } else {
+      return {
+        success: false,
+        message: data.error || "Failed to deactivate coupon.",
+        error: data.error,
+      };
+    }
+  } catch (error) {
+    console.error("Error deactivating coupon:", error);
+    return {
+      success: false,
+      message: "An error occurred while deactivating the coupon.",
+      error: "Network error",
+    };
+  }
+}
+
+// Server action to handle coupon deletion with cache invalidation
+export async function deleteCouponWithCacheInvalidation(couponId: string) {
+  try {
+    const response = await fetch(`${getBackendUrl()}/coupons/${couponId}`, {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (response.ok) {
+      // Invalidate ISR cache after successful deletion
+      revalidateTag(ISR_TAGS.COUPONS);
+      revalidateTag(`coupon-${couponId}`);
+      
+      return {
+        success: true,
+        message: "Coupon deleted successfully!",
+      };
+    } else {
+      const data = await response.json();
+      return {
+        success: false,
+        message: data.error || "Failed to delete coupon.",
+        error: data.error,
+      };
+    }
+  } catch (error) {
+    console.error("Error deleting coupon:", error);
+    return {
+      success: false,
+      message: "An error occurred while deleting the coupon.",
+      error: "Network error",
     };
   }
 }

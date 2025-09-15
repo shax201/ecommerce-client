@@ -66,7 +66,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { ColorData } from "@/actions/colors"
+import { ColorData, useDeleteColorMutation, useGetColorsQuery } from "@/lib/features/attributes"
 
 // Schema for color data
 const colorSchema = z.object({
@@ -83,7 +83,6 @@ interface ColorClientProps {
 
 export function ColorsClient({ initialColors }: ColorClientProps) {
   const router = useRouter()
-  const [data, setData] = React.useState(() => initialColors)
   const [rowSelection, setRowSelection] = React.useState({})
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
@@ -94,7 +93,13 @@ export function ColorsClient({ initialColors }: ColorClientProps) {
   })
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false)
   const [colorToDelete, setColorToDelete] = React.useState<ColorData | null>(null)
-  const [isDeleting, setIsDeleting] = React.useState(false)
+  
+  // Redux hooks
+  const { data: colorsResponse, refetch } = useGetColorsQuery()
+  const [deleteColor, { isLoading: isDeleting }] = useDeleteColorMutation()
+  
+  // Use Redux data or fallback to initial data
+  const data = colorsResponse?.data || initialColors
 
   // Handle edit button click
   const handleEditClick = (color: ColorData) => {
@@ -116,28 +121,24 @@ export function ColorsClient({ initialColors }: ColorClientProps) {
     if (!colorToDelete) return
 
     try {
-      setIsDeleting(true)
       const loadingToast = toast.loading("Deleting color...")
       
-      // Implement delete functionality here
-      // For now, just simulate success
-      setTimeout(() => {
-        setData(data.filter(c => c._id !== colorToDelete._id))
-        setIsDeleteDialogOpen(false)
-        setColorToDelete(null)
-        toast.dismiss(loadingToast)
-        toast.success("Color deleted successfully", {
-          description: `Deleted color "${colorToDelete.color}"`
-        })
-        setIsDeleting(false)
-      }, 1000)
+      const result = await deleteColor(colorToDelete._id).unwrap()
       
-    } catch (error) {
-      console.error("Error deleting color:", error)
-      toast.error("Error deleting color", {
-        description: "An unexpected error occurred. Please try again."
+      toast.dismiss(loadingToast)
+      
+      // Refetch data to get updated list
+      refetch()
+      setIsDeleteDialogOpen(false)
+      setColorToDelete(null)
+      toast.success("Color deleted successfully", {
+        description: `Deleted color "${colorToDelete.color}"`
       })
-      setIsDeleting(false)
+    } catch (error: any) {
+      console.error("Error deleting color:", error)
+      toast.error("Failed to delete color", {
+        description: error?.data?.message || "An unexpected error occurred. Please try again."
+      })
     }
   }
 
@@ -148,7 +149,7 @@ export function ColorsClient({ initialColors }: ColorClientProps) {
   }
 
   // Handle bulk delete
-  const handleBulkDelete = () => {
+  const handleBulkDelete = async () => {
     const selectedRows = table.getFilteredSelectedRowModel().rows
     const selectedColors = selectedRows.map(row => row.original)
     
@@ -157,20 +158,39 @@ export function ColorsClient({ initialColors }: ColorClientProps) {
       return
     }
 
-    toast.promise(
-      new Promise((resolve) => {
-        setTimeout(() => {
-          setData(data.filter(color => !selectedColors.find(selected => selected._id === color._id)))
-          setRowSelection({})
-          resolve(true)
-        }, 1000)
-      }),
-      {
-        loading: `Deleting ${selectedColors.length} color(s)...`,
-        success: `Successfully deleted ${selectedColors.length} color(s)`,
-        error: "Failed to delete colors",
+    try {
+      const loadingToast = toast.loading(`Deleting ${selectedColors.length} color(s)...`)
+      
+      // Delete colors one by one
+      const deletePromises = selectedColors.map(color => deleteColor(color._id).unwrap())
+      const results = await Promise.allSettled(deletePromises)
+      
+      // Check results
+      const successfulDeletes = results.filter(result => 
+        result.status === 'fulfilled'
+      ).length
+      
+      const failedDeletes = results.length - successfulDeletes
+      
+      toast.dismiss(loadingToast)
+      
+      if (successfulDeletes > 0) {
+        // Refetch data to get updated list
+        refetch()
+        setRowSelection({})
+        
+        if (failedDeletes === 0) {
+          toast.success(`Successfully deleted ${successfulDeletes} color(s)`)
+        } else {
+          toast.warning(`Deleted ${successfulDeletes} color(s), ${failedDeletes} failed`)
+        }
+      } else {
+        toast.error("Failed to delete colors")
       }
-    )
+    } catch (error) {
+      console.error("Error in bulk delete:", error)
+      toast.error("An unexpected error occurred during bulk delete")
+    }
   }
 
   const columns: ColumnDef<z.infer<typeof colorSchema>>[] = [

@@ -11,7 +11,7 @@ import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { Plus, X, Ruler, ArrowLeft, Save, CheckSquare, Square } from "lucide-react"
 import { toast } from "sonner"
-import { createSize } from "@/actions/size"
+import { useCreateSizeMutation } from "@/lib/features/attributes"
 import {
   Dialog,
   DialogContent,
@@ -27,7 +27,6 @@ export function AddSizeForm() {
   const [isMultipleMode, setIsMultipleMode] = useState(false)
   const [singleSize, setSingleSize] = useState("")
   const [multipleSizes, setMultipleSizes] = useState<string[]>([""])
-  const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSelectAllModalOpen, setIsSelectAllModalOpen] = useState(false)
   const [selectedCategories, setSelectedCategories] = useState<{
     clothing: boolean
@@ -40,6 +39,9 @@ export function AddSizeForm() {
     shoes: false,
     all: false
   })
+
+  // Redux hooks
+  const [createSize, { isLoading: isSubmitting }] = useCreateSizeMutation()
 
   // Size data
   const sizeData = {
@@ -169,39 +171,32 @@ export function AddSizeForm() {
   // Submit sizes to server
   const submitSizes = async (payload: { size?: string; sizes?: string[] }) => {
     try {
-      setIsSubmitting(true)
       const loadingToast = toast.loading("Creating size(s)...")
       
-      const result = await createSize(payload)
+      const result = await createSize(payload).unwrap()
       
       toast.dismiss(loadingToast)
       
-      if (result.success) {
-        toast.success("Size(s) created successfully!", {
-          description: result.message
-        })
-        
-        // Reset form
-        if (isMultipleMode) {
-          setMultipleSizes([""])
-        } else {
-          setSingleSize("")
-        }
-        
-        // Redirect back to sizes list
-        setTimeout(() => {
-          router.push("/attributes/sizes")
-        }, 1500)
+      toast.success("Size(s) created successfully!", {
+        description: result.message
+      })
+      
+      // Reset form
+      if (isMultipleMode) {
+        setMultipleSizes([""])
       } else {
-        toast.error("Failed to create size(s)", {
-          description: result.message
-        })
+        setSingleSize("")
       }
-    } catch (error) {
+      
+      // Redirect back to sizes list
+      setTimeout(() => {
+        router.push("/attributes/sizes")
+      }, 1500)
+    } catch (error: any) {
       console.error("Error creating sizes:", error)
-      toast.error("An unexpected error occurred")
-    } finally {
-      setIsSubmitting(false)
+      toast.error("Failed to create size(s)", {
+        description: error?.data?.message || "An unexpected error occurred"
+      })
     }
   }
 

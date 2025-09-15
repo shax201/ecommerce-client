@@ -11,7 +11,14 @@ import { useActionState } from "react"
 import { createProduct } from "./products-data"
 import { fetchCategories } from "../categories/categories-data"
 import { CategoryData } from "../categories/categroy.interface"
+import { useGetColorsQuery, useGetSizesQuery, ColorData, SizeData } from "@/lib/features/attributes"
 import { toast } from "sonner"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Badge } from "@/components/ui/badge"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+
+import { Check, ChevronsUpDown, X } from "lucide-react"
+import { cn } from "@/lib/utils"
 
 const productSchema = z.object({
   title: z.string().min(2, "Title is required"),
@@ -65,12 +72,23 @@ export default function ProductForm({ mode, initialValues, mockProduct }: Produc
     discountedPrice: defaultVals.discountedPrice || 0,
   })
 
-  const [color, setColor] = useState<string[]>([])
-  const [size, setSize] = useState<string[]>([])
+  const [selectedColors, setSelectedColors] = useState<string[]>([])
+  const [selectedSizes, setSelectedSizes] = useState<string[]>([])
   const [primaryImageUrl, setPrimaryImageUrl] = useState<string>("")
   const [optionalImages, setOptionalImages] = useState<string[]>([])
   const [categories, setCategories] = useState<CategoryData[]>([])
   const [selectedCategory, setSelectedCategory] = useState<string>("")
+  
+  // Multi-select dropdown states
+  const [colorsOpen, setColorsOpen] = useState(false)
+  const [sizesOpen, setSizesOpen] = useState(false)
+  
+  // Redux queries for colors and sizes
+  const { data: colorsResponse, isLoading: colorsLoading } = useGetColorsQuery()
+  const { data: sizesResponse, isLoading: sizesLoading } = useGetSizesQuery()
+  
+  const colors = colorsResponse?.data || []
+  const sizes = sizesResponse?.data || []
 
   useEffect(() => {
     fetchCategories().then(setCategories)
@@ -140,15 +158,19 @@ export default function ProductForm({ mode, initialValues, mockProduct }: Produc
     const discountPrice = Number(formData.get("discountedPrice"))
     const videoLink = formData.get("videoLink") as string
     const catagory = formData.getAll("category").filter(Boolean) as string[]
-    const colorStr = formData.get("color") as string
-    const sizeStr = formData.get("size") as string
 
-    if (!title || !primaryImage || !regularPrice || !catagory.length) {
-      return { error: "Title, primary image, price, and category are required.", success: false }
+    // Additional validation for description content
+    const plainTextDescription = description.replace(/<[^>]*>/g, '').trim()
+    
+    if (!title || !sku || !description || !plainTextDescription || !primaryImage || !regularPrice || !catagory.length) {
+      return { error: "Title, SKU, description (with content), primary image, price, and category are required.", success: false }
     }
+
+    // Note: Color and size arrays can be empty - backend will handle validation
 
     const payload = {
       title,
+      sku, // Include SKU in payload
       description,
       primaryImage,
       optionalImages: optionalImagesStr ? optionalImagesStr.split(",").map((url) => url.trim()).filter(Boolean) : [],
@@ -156,9 +178,12 @@ export default function ProductForm({ mode, initialValues, mockProduct }: Produc
       discountPrice,
       videoLink,
       catagory: selectedCategory ? [selectedCategory] : [],
-      color: colorStr ? colorStr.split(",").map((c) => c.trim()).filter(Boolean) : [],
-      size: sizeStr ? sizeStr.split(",").map((s) => s.trim()).filter(Boolean) : [],
+      color: selectedColors, // Use selected color IDs
+      size: selectedSizes, // Use selected size IDs
     }
+
+    // Debug: Log the payload to see what's being sent
+    console.log("Product payload:", payload)
 
     const result = await createProduct(payload)
     if (result) {
@@ -211,12 +236,80 @@ export default function ProductForm({ mode, initialValues, mockProduct }: Produc
     updateSteps(formValues, category, content)
   }
 
-  // Add color and size input handlers
-  const handleColorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setColor(e.target.value.split(",").map((c) => c.trim()).filter(Boolean))
+  // Handle color selection
+  const handleColorToggle = (colorId: string) => {
+    setSelectedColors(prev => 
+      prev.includes(colorId) 
+        ? prev.filter(id => id !== colorId)
+        : [...prev, colorId]
+    )
   }
-  const handleSizeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSize(e.target.value.split(",").map((s) => s.trim()).filter(Boolean))
+
+  // Handle size selection
+  const handleSizeToggle = (sizeId: string) => {
+    setSelectedSizes(prev => 
+      prev.includes(sizeId) 
+        ? prev.filter(id => id !== sizeId)
+        : [...prev, sizeId]
+    )
+  }
+
+  // Remove selected color
+  const removeColor = (colorId: string) => {
+    setSelectedColors(prev => prev.filter(id => id !== colorId))
+  }
+
+  // Remove selected size
+  const removeSize = (sizeId: string) => {
+    setSelectedSizes(prev => prev.filter(id => id !== sizeId))
+  }
+
+  // Get selected color names for display
+  const getSelectedColorNames = () => {
+    return selectedColors.map(colorId => {
+      const color = colors.find(c => c._id === colorId)
+      return color ? color.color : colorId
+    })
+  }
+
+  // Get selected size names for display
+  const getSelectedSizeNames = () => {
+    return selectedSizes.map(sizeId => {
+      const size = sizes.find(s => s._id === sizeId)
+      return size ? size.size : sizeId
+    })
+  }
+
+  // Get color preview style
+  const getColorStyle = (color: string) => {
+    const colorMap: Record<string, string> = {
+      'red': '#ef4444',
+      'blue': '#3b82f6',
+      'green': '#22c55e',
+      'yellow': '#eab308',
+      'purple': '#a855f7',
+      'pink': '#ec4899',
+      'orange': '#f97316',
+      'brown': '#a16207',
+      'black': '#000000',
+      'white': '#ffffff',
+      'gray': '#6b7280',
+      'grey': '#6b7280',
+      'navy': '#1e3a8a',
+      'maroon': '#991b1b',
+      'olive': '#65a30d',
+      'lime': '#84cc16',
+      'aqua': '#06b6d4',
+      'teal': '#14b8a6',
+      'silver': '#cbd5e1',
+      'gold': '#fbbf24',
+      'indigo': '#6366f1',
+      'cyan': '#06b6d4',
+      'amber': '#f59e0b'
+    }
+    
+    const normalizedColor = color.toLowerCase().trim()
+    return colorMap[normalizedColor] || normalizedColor
   }
   const handlePrimaryImageUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setPrimaryImageUrl(e.target.value)
@@ -285,15 +378,162 @@ export default function ProductForm({ mode, initialValues, mockProduct }: Produc
           </div>
         </div>
 
-        {/* Color and Size Row */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Color and Size Selection */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Colors Multi-Select */}
           <div className="w-full">
-            <Label htmlFor="color">Colors (comma separated)</Label>
-            <Input id="color" name="color" type="text" placeholder="Red, Blue" onChange={handleColorChange} className="w-full" />
+            <Label>Colors</Label>
+            <div className="mt-2 space-y-2">
+              <Popover open={colorsOpen} onOpenChange={setColorsOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={colorsOpen}
+                    className="w-full justify-between"
+                  >
+                    {selectedColors.length === 0
+                      ? "Select colors..."
+                      : `${selectedColors.length} color${selectedColors.length === 1 ? '' : 's'} selected`}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80 p-0">
+                  <div className="p-3">
+                    <div className="space-y-2">
+                      {colorsLoading ? (
+                        <div className="text-sm text-muted-foreground text-center py-4">Loading colors...</div>
+                      ) : colors.length === 0 ? (
+                        <div className="text-sm text-muted-foreground text-center py-4">
+                          No colors available. <a href="/attributes/colors" className="text-primary hover:underline">Add colors</a>
+                        </div>
+                      ) : (
+                        <div className="max-h-64 overflow-y-auto space-y-2">
+                          {colors.map((color) => (
+                            <div key={color._id} className="flex items-center space-x-2 p-2 hover:bg-accent rounded-md">
+                              <Checkbox
+                                id={`color-${color._id}`}
+                                checked={selectedColors.includes(color._id)}
+                                onCheckedChange={() => handleColorToggle(color._id)}
+                              />
+                              <Label 
+                                htmlFor={`color-${color._id}`} 
+                                className="flex items-center gap-2 cursor-pointer flex-1"
+                              >
+                                <div 
+                                  className="w-4 h-4 rounded-full border-2 border-gray-200"
+                                  style={{ backgroundColor: getColorStyle(color.color) }}
+                                />
+                                <span className="text-sm">{color.color}</span>
+                              </Label>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
+              
+              {/* Selected Colors Display */}
+              {selectedColors.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {selectedColors.map((colorId) => {
+                    const color = colors.find(c => c._id === colorId)
+                    return color ? (
+                      <Badge key={colorId} variant="secondary" className="flex items-center gap-1 pr-1">
+                        <div 
+                          className="w-3 h-3 rounded-full"
+                          style={{ backgroundColor: getColorStyle(color.color) }}
+                        />
+                        {color.color}
+                        <button
+                          type="button"
+                          onClick={() => removeColor(colorId)}
+                          className="ml-1 hover:bg-destructive/20 rounded-full p-0.5"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    ) : null
+                  })}
+                </div>
+              )}
+            </div>
           </div>
+
+          {/* Sizes Multi-Select */}
           <div className="w-full">
-            <Label htmlFor="size">Sizes (comma separated)</Label>
-            <Input id="size" name="size" type="text" placeholder="M, L" onChange={handleSizeChange} className="w-full" />
+            <Label>Sizes</Label>
+            <div className="mt-2 space-y-2">
+              <Popover open={sizesOpen} onOpenChange={setSizesOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={sizesOpen}
+                    className="w-full justify-between"
+                  >
+                    {selectedSizes.length === 0
+                      ? "Select sizes..."
+                      : `${selectedSizes.length} size${selectedSizes.length === 1 ? '' : 's'} selected`}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80 p-0">
+                  <div className="p-3">
+                    <div className="space-y-2">
+                      {sizesLoading ? (
+                        <div className="text-sm text-muted-foreground text-center py-4">Loading sizes...</div>
+                      ) : sizes.length === 0 ? (
+                        <div className="text-sm text-muted-foreground text-center py-4">
+                          No sizes available. <a href="/attributes/sizes" className="text-primary hover:underline">Add sizes</a>
+                        </div>
+                      ) : (
+                        <div className="max-h-64 overflow-y-auto space-y-2">
+                          {sizes.map((size) => (
+                            <div key={size._id} className="flex items-center space-x-2 p-2 hover:bg-accent rounded-md">
+                              <Checkbox
+                                id={`size-${size._id}`}
+                                checked={selectedSizes.includes(size._id)}
+                                onCheckedChange={() => handleSizeToggle(size._id)}
+                              />
+                              <Label 
+                                htmlFor={`size-${size._id}`} 
+                                className="cursor-pointer flex-1 text-sm"
+                              >
+                                {size.size}
+                              </Label>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
+              
+              {/* Selected Sizes Display */}
+              {selectedSizes.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {selectedSizes.map((sizeId) => {
+                    const size = sizes.find(s => s._id === sizeId)
+                    return size ? (
+                      <Badge key={sizeId} variant="secondary" className="flex items-center gap-1 pr-1">
+                        {size.size}
+                        <button
+                          type="button"
+                          onClick={() => removeSize(sizeId)}
+                          className="ml-1 hover:bg-destructive/20 rounded-full p-0.5"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    ) : null
+                  })}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 

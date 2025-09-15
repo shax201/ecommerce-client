@@ -14,7 +14,7 @@ import { Mutex } from "async-mutex";
 const mutex = new Mutex();
 
 const baseQuery = fetchBaseQuery({
-  baseUrl: process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000",
+  baseUrl: process.env.BACKEND_URL || "http://localhost:5000/api/v1",
   prepareHeaders: (headers) => {
     // Get token from localStorage (primary) or cookie (fallback)
     let token = null;
@@ -70,6 +70,6 @@ const baseQueryWithReauth: BaseQueryFn<
 
 export const apiSlice = createApi({
   baseQuery: baseQueryWithReauth,
-  tagTypes: ["Product", "Category", "ShippingAddress", "Order", "OrderAnalytics", "Coupon"],
+  tagTypes: ["Product", "Category", "ShippingAddress", "Order", "OrderAnalytics", "Coupon", "Report", "ReportTemplate", "SalesReport", "OrdersReport", "ProductsReport", "CustomersReport", "InventoryReport", "CouponsReport", "AnalyticsReport", "FinancialReport", "Color", "Size"],
   endpoints: (builder) => ({}),
 });

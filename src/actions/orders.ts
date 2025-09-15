@@ -1,6 +1,13 @@
 "use server";
 
 import { revalidateTag } from "next/cache";
+import { unstable_cache } from "next/cache";
+import { ISR_TAGS } from "@/lib/isr-tags";
+
+
+const getBackendUrl = () => {
+  return process.env.NEXT_PUBLIC_BACKEND_URL || process.env.BACKEND_URL;
+};
 
 // Types for order data
 export interface OrderData {
@@ -219,7 +226,372 @@ export async function getOrderTracking(orderId: string): Promise<OrderTracking |
   }
 }
 
+// ===== ISR-ENABLED FUNCTIONS =====
+
+// Cached function for fetching all orders (admin)
+export const getOrdersISR = unstable_cache(
+  async (): Promise<OrderResponse> => {
+    try {
+      const response = await fetch(`${getBackendUrl()}/orders`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        next: { revalidate: 60 },
+      });
+
+      const data = await response.json();
+      
+      if (response.ok && data.success) {
+        return {
+          success: true,
+          message: data.message || "Orders fetched successfully",
+          data: data.data || [],
+          pagination: data.pagination,
+        };
+      } else {
+        return {
+          success: false,
+          message: data.message || "Failed to fetch orders",
+          data: [],
+        };
+      }
+    } catch (error) {
+      console.error("Error fetching orders:", error);
+      return {
+        success: false,
+        message: "Failed to fetch orders",
+        data: [],
+      };
+    }
+  },
+  ["orders"],
+  {
+    tags: [ISR_TAGS.ORDERS],
+    revalidate: 60, // 1 minute
+  }
+);
+
+// Cached function for fetching user orders
+export const getUserOrdersISR = unstable_cache(
+  async (userId: string, options: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    status?: string;
+  } = {}): Promise<OrderResponse> => {
+    try {
+      const queryParams = new URLSearchParams();
+      if (options.page) queryParams.set('page', options.page.toString());
+      if (options.limit) queryParams.set('limit', options.limit.toString());
+      if (options.search) queryParams.set('search', options.search);
+      if (options.status) queryParams.set('status', options.status);
+
+      const url = `${getBackendUrl()}/orders/user/${userId}?${queryParams.toString()}`;
+      const response = await fetch(url, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        next: { revalidate: 30 },
+      });
+
+      const data = await response.json();
+      
+      if (response.ok && data.success) {
+        return {
+          success: true,
+          message: data.message || "User orders fetched successfully",
+          data: data.data || [],
+          pagination: data.pagination,
+        };
+      } else {
+        return {
+          success: false,
+          message: data.message || "Failed to fetch user orders",
+          data: [],
+        };
+      }
+    } catch (error) {
+      console.error("Error fetching user orders:", error);
+      return {
+        success: false,
+        message: "Failed to fetch user orders",
+        data: [],
+      };
+    }
+  },
+  ["user-orders"],
+  {
+    tags: [ISR_TAGS.USER_ORDERS],
+    revalidate: 30, // 30 seconds for user-specific data
+  }
+);
+
+// Cached function for fetching single order
+export const getOrderByIdISR = unstable_cache(
+  async (orderId: string): Promise<OrderData | null> => {
+    try {
+      const response = await fetch(`${getBackendUrl()}/orders/${orderId}`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        next: { revalidate: 60 },
+      });
+
+      const data = await response.json();
+      
+      if (response.ok && data.success) {
+        return data.data;
+      } else {
+        console.error("Failed to fetch order:", data.message);
+        return null;
+      }
+    } catch (error) {
+      console.error("Error fetching order:", error);
+      return null;
+    }
+  },
+  ["order"],
+  {
+    tags: [ISR_TAGS.ORDERS],
+    revalidate: 60, // 1 minute
+  }
+);
+
+// Cached function for fetching order analytics
+export const getOrderAnalyticsISR = unstable_cache(
+  async (): Promise<any> => {
+    try {
+      const response = await fetch(`${getBackendUrl()}/orders/analytics`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        next: { revalidate: 300 },
+      });
+
+      const data = await response.json();
+      
+      if (response.ok && data.success) {
+        return data.data;
+      } else {
+        console.error("Failed to fetch order analytics:", data.message);
+        return null;
+      }
+    } catch (error) {
+      console.error("Error fetching order analytics:", error);
+      return null;
+    }
+  },
+  ["order-analytics"],
+  {
+    tags: [ISR_TAGS.ORDER_ANALYTICS],
+    revalidate: 300, // 5 minutes for analytics
+  }
+);
+
+// Cached function for fetching order tracking
+export const getOrderTrackingISR = unstable_cache(
+  async (orderId: string): Promise<OrderTracking | null> => {
+    try {
+      const response = await fetch(`${getBackendUrl()}/orders/${orderId}/tracking`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        next: { revalidate: 60 },
+      });
+
+      const data = await response.json();
+      
+      if (response.ok && data.success) {
+        return data.data;
+      } else {
+        console.error("Failed to fetch order tracking:", data.message);
+        return null;
+      }
+    } catch (error) {
+      console.error("Error fetching order tracking:", error);
+      return null;
+    }
+  },
+  ["order-tracking"],
+  {
+    tags: [ISR_TAGS.ORDER_TRACKING],
+    revalidate: 60, // 1 minute
+  }
+);
+
 // Revalidate orders cache
 export async function revalidateOrders() {
-  revalidateTag("orders");
+  revalidateTag(ISR_TAGS.ORDERS);
+}
+
+// Revalidate user orders cache
+export async function revalidateUserOrders() {
+  revalidateTag(ISR_TAGS.USER_ORDERS);
+}
+
+// Revalidate order analytics cache
+export async function revalidateOrderAnalytics() {
+  revalidateTag(ISR_TAGS.ORDER_ANALYTICS);
+}
+
+// ===== SERVER ACTIONS FOR CACHE INVALIDATION =====
+
+// Server action to handle order creation with cache invalidation
+export async function createOrderWithCacheInvalidation(orderData: any) {
+  try {
+    // Call your backend API
+    const response = await fetch(`${getBackendUrl()}/orders`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(orderData),
+    });
+
+    const data = await response.json();
+
+    if (response.ok && data.success) {
+      // Invalidate ISR cache after successful creation
+      revalidateTag(ISR_TAGS.ORDERS);
+      revalidateTag(ISR_TAGS.USER_ORDERS);
+      revalidateTag(ISR_TAGS.ORDER_ANALYTICS);
+      
+      return {
+        success: true,
+        data: data.data,
+        message: data.message || "Order created successfully",
+      };
+    } else {
+      return {
+        success: false,
+        message: data.message || "Failed to create order",
+      };
+    }
+  } catch (error) {
+    console.error("Error creating order:", error);
+    return {
+      success: false,
+      message: "Failed to create order",
+    };
+  }
+}
+
+// Server action to handle order update with cache invalidation
+export async function updateOrderWithCacheInvalidation(orderId: string, updateData: any) {
+  try {
+    const response = await fetch(`${getBackendUrl()}/orders/${orderId}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(updateData),
+    });
+
+    const data = await response.json();
+
+    if (response.ok && data.success) {
+      // Invalidate ISR cache after successful update
+      revalidateTag(ISR_TAGS.ORDERS);
+      revalidateTag(ISR_TAGS.USER_ORDERS);
+      revalidateTag(ISR_TAGS.ORDER_ANALYTICS);
+      
+      return {
+        success: true,
+        data: data.data,
+        message: data.message || "Order updated successfully",
+      };
+    } else {
+      return {
+        success: false,
+        message: data.message || "Failed to update order",
+      };
+    }
+  } catch (error) {
+    console.error("Error updating order:", error);
+    return {
+      success: false,
+      message: "Failed to update order",
+    };
+  }
+}
+
+// Server action to handle order status update with cache invalidation
+export async function updateOrderStatusWithCacheInvalidation(orderId: string, status: string) {
+  try {
+    const response = await fetch(`${getBackendUrl()}/orders/${orderId}/status`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ status }),
+    });
+
+    const data = await response.json();
+
+    if (response.ok && data.success) {
+      // Invalidate ISR cache after successful status update
+      revalidateTag(ISR_TAGS.ORDERS);
+      revalidateTag(ISR_TAGS.USER_ORDERS);
+      revalidateTag(ISR_TAGS.ORDER_ANALYTICS);
+      
+      return {
+        success: true,
+        data: data.data,
+        message: data.message || "Order status updated successfully",
+      };
+    } else {
+      return {
+        success: false,
+        message: data.message || "Failed to update order status",
+      };
+    }
+  } catch (error) {
+    console.error("Error updating order status:", error);
+    return {
+      success: false,
+      message: "Failed to update order status",
+    };
+  }
+}
+
+// Server action to handle order deletion with cache invalidation
+export async function deleteOrderWithCacheInvalidation(orderId: string) {
+  try {
+    const response = await fetch(`${getBackendUrl()}/orders/${orderId}`, {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    const data = await response.json();
+
+    if (response.ok && data.success) {
+      // Invalidate ISR cache after successful deletion
+      revalidateTag(ISR_TAGS.ORDERS);
+      revalidateTag(ISR_TAGS.USER_ORDERS);
+      revalidateTag(ISR_TAGS.ORDER_ANALYTICS);
+      
+      return {
+        success: true,
+        message: data.message || "Order deleted successfully",
+      };
+    } else {
+      return {
+        success: false,
+        message: data.message || "Failed to delete order",
+      };
+    }
+  } catch (error) {
+    console.error("Error deleting order:", error);
+    return {
+      success: false,
+      message: "Failed to delete order",
+    };
+  }
 }

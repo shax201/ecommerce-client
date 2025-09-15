@@ -13,6 +13,11 @@ import {
   Tags,
   Users,
   FileText,
+  BarChart3,
+  TrendingUp,
+  Archive,
+  DollarSign,
+  Settings,
 } from "lucide-react";
 
 import { NavMain } from "@/components/dashboard/nav-main";
@@ -68,6 +73,20 @@ const data = {
       title: "Orders (by Shahadat)",
       url: "/orders",
       icon: ShoppingCart,
+      submenu: [
+        {
+          title: "All Orders",
+          url: "/orders/all",
+        },
+        {
+          title: "Track Orders",
+          url: "/orders/track",
+        },
+        {
+          title: "Analytics",
+          url: "/orders/analytics",
+        },
+      ],
     },
     {
       title: "Coupons (by Shahadat)",
@@ -84,6 +103,49 @@ const data = {
       url: "/content",
       icon: FileText,
     },
+    {
+      title: "Reports (by Shahadat)",
+      url: "/reports",
+      icon: BarChart3,
+      submenu: [
+        // {
+        //   title: "Overview",
+        //   url: "/reports",
+        // },
+        // {
+        //   title: "Sales Reports",
+        //   url: "/reports/sales",
+        // },
+        {
+          title: "Orders Reports",
+          url: "/reports/orders",
+        },
+        // {
+        //   title: "Products Reports",
+        //   url: "/reports/products",
+        // },
+        // {
+        //   title: "Customers Reports",
+        //   url: "/reports/customers",
+        // },
+        // {
+        //   title: "Inventory Reports",
+        //   url: "/reports/inventory",
+        // },
+        // {
+        //   title: "Coupons Reports",
+        //   url: "/reports/coupons",
+        // },
+        // {
+        //   title: "Analytics Reports",
+        //   url: "/reports/analytics",
+        // },
+        // {
+        //   title: "Financial Reports",
+        //   url: "/reports/financial",
+        // },
+      ],
+    },
   ],
 
   navSecondary: [
@@ -92,34 +154,9 @@ const data = {
       url: "/dashboard/settings",
       icon: SettingsIcon,
     },
-    {
-      title: "Get Help",
-      url: "#",
-      icon: HelpCircleIcon,
-    },
-    {
-      title: "Search",
-      url: "#",
-      icon: SearchIcon,
-    },
+
   ],
-  // documents: [
-  //   {
-  //     name: "Data Library",
-  //     url: "#",
-  //     icon: DatabaseIcon,
-  //   },
-  //   {
-  //     name: "Reports",
-  //     url: "#",
-  //     icon: ClipboardListIcon,
-  //   },
-  //   {
-  //     name: "Word Assistant",
-  //     url: "#",
-  //     icon: FileIcon,
-  //   },
-  // ],
+
 };
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {

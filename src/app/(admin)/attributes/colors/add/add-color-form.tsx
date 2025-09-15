@@ -11,7 +11,7 @@ import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { Plus, X, Palette, ArrowLeft, Save, CheckSquare } from "lucide-react"
 import { toast } from "sonner"
-import { createColor } from "@/actions/colors"
+import { useCreateColorMutation } from "@/lib/features/attributes"
 import {
   Dialog,
   DialogContent,
@@ -27,7 +27,6 @@ export function AddColorForm() {
   const [isMultipleMode, setIsMultipleMode] = useState(false)
   const [singleColor, setSingleColor] = useState("")
   const [multipleColors, setMultipleColors] = useState<string[]>([""])
-  const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSelectAllModalOpen, setIsSelectAllModalOpen] = useState(false)
   const [selectedCategories, setSelectedCategories] = useState<{
     primary: boolean
@@ -40,6 +39,9 @@ export function AddColorForm() {
     neutral: false,
     all: false
   })
+
+  // Redux hooks
+  const [createColor, { isLoading: isSubmitting }] = useCreateColorMutation()
 
   // Color data
   const colorData = {
@@ -169,39 +171,32 @@ export function AddColorForm() {
   // Submit colors to server
   const submitColors = async (payload: { color?: string; colors?: string[] }) => {
     try {
-      setIsSubmitting(true)
       const loadingToast = toast.loading("Creating color(s)...")
       
-      const result = await createColor(payload)
+      const result = await createColor(payload).unwrap()
       
       toast.dismiss(loadingToast)
       
-      if (result.success) {
-        toast.success("Color(s) created successfully!", {
-          description: result.message
-        })
-        
-        // Reset form
-        if (isMultipleMode) {
-          setMultipleColors([""])
-        } else {
-          setSingleColor("")
-        }
-        
-        // Redirect back to colors list
-        setTimeout(() => {
-          router.push("/attributes/colors")
-        }, 1500)
+      toast.success("Color(s) created successfully!", {
+        description: result.message
+      })
+      
+      // Reset form
+      if (isMultipleMode) {
+        setMultipleColors([""])
       } else {
-        toast.error("Failed to create color(s)", {
-          description: result.message
-        })
+        setSingleColor("")
       }
-    } catch (error) {
+      
+      // Redirect back to colors list
+      setTimeout(() => {
+        router.push("/attributes/colors")
+      }, 1500)
+    } catch (error: any) {
       console.error("Error creating colors:", error)
-      toast.error("An unexpected error occurred")
-    } finally {
-      setIsSubmitting(false)
+      toast.error("Failed to create color(s)", {
+        description: error?.data?.message || "An unexpected error occurred"
+      })
     }
   }
 

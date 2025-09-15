@@ -17,6 +17,7 @@ import {
   useGetDefaultShippingAddressQuery,
   useCreateShippingAddressMutation 
 } from "@/lib/features/shipping-address";
+import { useValidateProductCouponMutation } from "@/lib/features/coupons/couponsApi";
 
 import BreadcrumbProduct from "../product-page/BreadcrumbProduct";
 
@@ -28,6 +29,14 @@ export function CheckoutPage() {
   );
   const router = useRouter();
   const [purchaseProduct, { isLoading }] = usePurchaseProductMutation();
+  const [validateProductCoupon, { isLoading: isValidatingCoupon }] = useValidateProductCouponMutation();
+
+  // Coupon-related state
+  const [couponCode, setCouponCode] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState<any>(null);
+  const [couponError, setCouponError] = useState("");
+  const [discountAmount, setDiscountAmount] = useState(0);
+  const [finalPrice, setFinalPrice] = useState(adjustedTotalPrice);
 
   const [formData, setFormData] = useState({
     firstName: "",
@@ -107,6 +116,71 @@ export function CheckoutPage() {
     setIsLoadingAddress(isDefaultAddressLoading);
   }, [isDefaultAddressLoading]);
 
+  // Update final price when adjustedTotalPrice changes
+  useEffect(() => {
+    if (appliedCoupon) {
+      setFinalPrice(adjustedTotalPrice - discountAmount);
+    } else {
+      setFinalPrice(adjustedTotalPrice);
+    }
+  }, [adjustedTotalPrice, appliedCoupon, discountAmount]);
+
+  const handleCouponValidation = async () => {
+    if (!couponCode.trim()) {
+      setCouponError("Please enter a coupon code");
+      return;
+    }
+
+    if (!cart?.items?.length) {
+      setCouponError("No items in cart");
+      return;
+    }
+
+    const user = localStorage.getItem("client");
+    const userObj = user ? JSON.parse(user) : null;
+    const productIds = cart.items.map((item) => item.id);
+
+    try {
+      setCouponError("");
+      const response = await validateProductCoupon({
+        couponCode: couponCode.trim(),
+        productIds,
+        userId: userObj?._id,
+      }).unwrap();
+
+      if (response.success && response.data?.isValid) {
+        const coupon = response.data.coupon;
+        setAppliedCoupon(coupon);
+        
+        // Calculate discount amount
+        let calculatedDiscount = 0;
+        if (coupon.discountType === "fixed") {
+          calculatedDiscount = Math.min(coupon.discountValue, adjustedTotalPrice);
+        } else {
+          calculatedDiscount = (adjustedTotalPrice * coupon.discountValue) / 100;
+          if (coupon.maximumDiscountAmount) {
+            calculatedDiscount = Math.min(calculatedDiscount, coupon.maximumDiscountAmount);
+          }
+        }
+        
+        setDiscountAmount(calculatedDiscount);
+        setFinalPrice(adjustedTotalPrice - calculatedDiscount);
+      } else {
+        setCouponError(response.data?.error || "Invalid coupon code");
+      }
+    } catch (error: any) {
+      setCouponError(error?.data?.error || "Failed to validate coupon");
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setCouponCode("");
+    setAppliedCoupon(null);
+    setCouponError("");
+    setDiscountAmount(0);
+    setFinalPrice(adjustedTotalPrice);
+  };
+
   const checkoutHandler = async () => {
     const user = localStorage.getItem("client");
     if (!user || !cart?.items?.length) return;
@@ -137,7 +211,7 @@ export function CheckoutPage() {
         user: userObj._id,
         productID: productIds,
         paymentMethod,
-        totalPrice: adjustedTotalPrice,
+        totalPrice: finalPrice,
         quantity: cart.items.reduce((acc, item) => acc + item.quantity, 0),
         shipping: {
           _id: defaultAddressData?.data?._id,
@@ -150,6 +224,7 @@ export function CheckoutPage() {
           name: `${formData.firstName} ${formData.lastName}`,
           email: formData.email,
         },
+        ...(appliedCoupon && { couponCode: appliedCoupon.code }),
       };
 
       console.log("orderPayload", orderPayload);
@@ -405,6 +480,59 @@ export function CheckoutPage() {
                 )}
               </CardContent>
             </Card>
+
+            {/* Coupon Code Section */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <span>Coupon Code</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {!appliedCoupon ? (
+                  <div className="flex space-x-2">
+                    <Input
+                      placeholder="Enter coupon code"
+                      value={couponCode}
+                      onChange={(e) => setCouponCode(e.target.value)}
+                      className="flex-1"
+                    />
+                    <Button
+                      onClick={handleCouponValidation}
+                      disabled={isValidatingCoupon || !couponCode.trim()}
+                      variant="outline"
+                    >
+                      {isValidatingCoupon ? "Validating..." : "Apply"}
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
+                    <div className="flex items-center space-x-2">
+                      <span className="text-green-700 font-medium">
+                        {appliedCoupon.code} applied
+                      </span>
+                      <Badge variant="secondary" className="text-green-700">
+                        {appliedCoupon.discountType === "fixed" 
+                          ? `$${appliedCoupon.discountValue} off`
+                          : `${appliedCoupon.discountValue}% off`
+                        }
+                      </Badge>
+                    </div>
+                    <Button
+                      onClick={handleRemoveCoupon}
+                      variant="ghost"
+                      size="sm"
+                      className="text-red-600 hover:text-red-700"
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                )}
+                {couponError && (
+                  <p className="text-sm text-red-600">{couponError}</p>
+                )}
+              </CardContent>
+            </Card>
           </div>
 
           {/* Right Column - Order Summary */}
@@ -461,10 +589,12 @@ export function CheckoutPage() {
                     <span>Subtotal</span>
                     <span>${adjustedTotalPrice}</span>
                   </div>
-                  <div className="flex justify-between text-red-600">
-                    <span>Discount (-50%)</span>
-                    <span>-$10</span>
-                  </div>
+                  {appliedCoupon && (
+                    <div className="flex justify-between text-green-600">
+                      <span>Coupon Discount ({appliedCoupon.code})</span>
+                      <span>-${discountAmount.toFixed(2)}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between">
                     <span>Delivery Fee</span>
                     <span className="text-green-600">Free</span>
@@ -478,7 +608,7 @@ export function CheckoutPage() {
 
                   <div className="flex justify-between text-lg font-bold">
                     <span>Total</span>
-                    <span>${adjustedTotalPrice}</span>
+                    <span>${finalPrice.toFixed(2)}</span>
                   </div>
                 </div>
 

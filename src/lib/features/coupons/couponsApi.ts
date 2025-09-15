@@ -145,6 +145,19 @@ export const couponsApi = apiSlice.injectEndpoints({
       }),
     }),
 
+    // Validate coupon for product purchase
+    validateProductCoupon: builder.mutation<CouponValidationResponse, {
+      couponCode: string;
+      productIds: string[];
+      userId?: string;
+    }>({
+      query: (validationData) => ({
+        url: "/products/validate-coupon",
+        method: "POST",
+        body: validationData,
+      }),
+    }),
+
     // Apply coupon
     applyCoupon: builder.mutation<CouponApplyResponse, CouponApplyRequest>({
       query: (applyData) => ({
@@ -284,6 +297,7 @@ export const useDeleteCouponMutation = couponsApi.useDeleteCouponMutation;
 export const useActivateCouponMutation = couponsApi.useActivateCouponMutation;
 export const useDeactivateCouponMutation = couponsApi.useDeactivateCouponMutation;
 export const useValidateCouponMutation = couponsApi.useValidateCouponMutation;
+export const useValidateProductCouponMutation = couponsApi.useValidateProductCouponMutation;
 export const useApplyCouponMutation = couponsApi.useApplyCouponMutation;
 export const useBulkActivateCouponsMutation = couponsApi.useBulkActivateCouponsMutation;
 export const useBulkDeactivateCouponsMutation = couponsApi.useBulkDeactivateCouponsMutation;

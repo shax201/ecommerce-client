@@ -7,6 +7,8 @@ import { shippingAddressReducer } from "./features/shipping-address";
 import { authReducer } from "./features/auth";
 import { ordersReducer } from "./features/orders";
 import { couponsReducer } from "./features/coupons";
+import { reportsReducer } from "./features/reports";
+import { attributesReducer } from "./features/attributes";
 import { apiSlice } from "./features/api/apiSlice";
 
 const persistConfig = {
@@ -23,6 +25,8 @@ const rootReducer = combineReducers({
   auth: authReducer,
   orders: ordersReducer,
   coupons: couponsReducer,
+  reports: reportsReducer,
+  attributes: attributesReducer,
   [apiSlice.reducerPath]: apiSlice.reducer,
 });
 const persistedReducer = persistReducer(persistConfig, rootReducer);

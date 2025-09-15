@@ -66,7 +66,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { SizeData } from "@/actions/size"
+import { SizeData, useDeleteSizeMutation, useGetSizesQuery } from "@/lib/features/attributes"
 
 // Schema for size data
 const sizeSchema = z.object({
@@ -83,7 +83,6 @@ interface SizesClientProps {
 
 export function SizesClient({ initialSizes }: SizesClientProps) {
   const router = useRouter()
-  const [data, setData] = React.useState(() => initialSizes)
   const [rowSelection, setRowSelection] = React.useState({})
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
@@ -94,7 +93,13 @@ export function SizesClient({ initialSizes }: SizesClientProps) {
   })
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false)
   const [sizeToDelete, setSizeToDelete] = React.useState<SizeData | null>(null)
-  const [isDeleting, setIsDeleting] = React.useState(false)
+  
+  // Redux hooks
+  const { data: sizesResponse, refetch } = useGetSizesQuery()
+  const [deleteSize, { isLoading: isDeleting }] = useDeleteSizeMutation()
+  
+  // Use Redux data or fallback to initial data
+  const data = sizesResponse?.data || initialSizes
 
   // Handle edit button click
   const handleEditClick = (size: SizeData) => {
@@ -116,28 +121,24 @@ export function SizesClient({ initialSizes }: SizesClientProps) {
     if (!sizeToDelete) return
 
     try {
-      setIsDeleting(true)
       const loadingToast = toast.loading("Deleting size...")
       
-      // Implement delete functionality here
-      // For now, just simulate success
-      setTimeout(() => {
-        setData(data.filter(s => s._id !== sizeToDelete._id))
-        setIsDeleteDialogOpen(false)
-        setSizeToDelete(null)
-        toast.dismiss(loadingToast)
-        toast.success("Size deleted successfully", {
-          description: `Deleted size "${sizeToDelete.size}"`
-        })
-        setIsDeleting(false)
-      }, 1000)
+      const result = await deleteSize(sizeToDelete._id).unwrap()
       
-    } catch (error) {
-      console.error("Error deleting size:", error)
-      toast.error("Error deleting size", {
-        description: "An unexpected error occurred. Please try again."
+      toast.dismiss(loadingToast)
+      
+      // Refetch data to get updated list
+      refetch()
+      setIsDeleteDialogOpen(false)
+      setSizeToDelete(null)
+      toast.success("Size deleted successfully", {
+        description: `Deleted size "${sizeToDelete.size}"`
       })
-      setIsDeleting(false)
+    } catch (error: any) {
+      console.error("Error deleting size:", error)
+      toast.error("Failed to delete size", {
+        description: error?.data?.message || "An unexpected error occurred. Please try again."
+      })
     }
   }
 
@@ -148,7 +149,7 @@ export function SizesClient({ initialSizes }: SizesClientProps) {
   }
 
   // Handle bulk delete
-  const handleBulkDelete = () => {
+  const handleBulkDelete = async () => {
     const selectedRows = table.getFilteredSelectedRowModel().rows
     const selectedSizes = selectedRows.map(row => row.original)
     
@@ -157,20 +158,39 @@ export function SizesClient({ initialSizes }: SizesClientProps) {
       return
     }
 
-    toast.promise(
-      new Promise((resolve) => {
-        setTimeout(() => {
-          setData(data.filter(size => !selectedSizes.find(selected => selected._id === size._id)))
-          setRowSelection({})
-          resolve(true)
-        }, 1000)
-      }),
-      {
-        loading: `Deleting ${selectedSizes.length} size(s)...`,
-        success: `Successfully deleted ${selectedSizes.length} size(s)`,
-        error: "Failed to delete sizes",
+    try {
+      const loadingToast = toast.loading(`Deleting ${selectedSizes.length} size(s)...`)
+      
+      // Delete sizes one by one
+      const deletePromises = selectedSizes.map(size => deleteSize(size._id).unwrap())
+      const results = await Promise.allSettled(deletePromises)
+      
+      // Check results
+      const successfulDeletes = results.filter(result => 
+        result.status === 'fulfilled'
+      ).length
+      
+      const failedDeletes = results.length - successfulDeletes
+      
+      toast.dismiss(loadingToast)
+      
+      if (successfulDeletes > 0) {
+        // Refetch data to get updated list
+        refetch()
+        setRowSelection({})
+        
+        if (failedDeletes === 0) {
+          toast.success(`Successfully deleted ${successfulDeletes} size(s)`)
+        } else {
+          toast.warning(`Deleted ${successfulDeletes} size(s), ${failedDeletes} failed`)
+        }
+      } else {
+        toast.error("Failed to delete sizes")
       }
-    )
+    } catch (error) {
+      console.error("Error in bulk delete:", error)
+      toast.error("An unexpected error occurred during bulk delete")
+    }
   }
 
   // Get size category based on size value
