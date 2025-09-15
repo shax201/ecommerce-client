@@ -1,18 +1,14 @@
 "use client";
 
 import React from 'react';
+import { useParams } from 'next/navigation';
 import { useGetSingleSizeQuery } from '@/lib/features/attributes';
 import { EditSizeForm } from './edit-size-form';
 import { notFound } from 'next/navigation';
 
-interface EditSizePageProps {
-  params: {
-    id: string;
-  };
-}
-
-const EditSizePage = ({ params }: EditSizePageProps) => {
-  const { data: sizeResponse, isLoading, error } = useGetSingleSizeQuery(params.id);
+const EditSizePage = () => {
+  const { id } = useParams() as { id: string };
+  const { data: sizeResponse, isLoading, error } = useGetSingleSizeQuery(id);
 
   if (isLoading) {
     return (

@@ -84,13 +84,15 @@ const productSchema = z.object({
   discountPrice: z.number(),
   videoLink: z.string().optional(),
   catagory: z.array(z.string()),
+  color: z.array(z.string()).optional(),
+  size: z.array(z.string()).optional(),
   createdAt: z.string(),
   updatedAt: z.string(),
   __v: z.number(),
   variants: z.object({
-    color: z.array(z.string()),
-    size: z.array(z.string()),
-  }),
+    color: z.array(z.string()).optional(),
+    size: z.array(z.string()).optional(),
+  }).optional(),
 })
 
 export function ProductsClient() {

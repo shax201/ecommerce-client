@@ -1,18 +1,14 @@
 "use client";
 
 import React from 'react';
+import { useParams } from 'next/navigation';
 import { useGetSingleColorQuery } from '@/lib/features/attributes';
 import { EditColorForm } from './edit-color-form';
 import { notFound } from 'next/navigation';
 
-interface EditColorPageProps {
-  params: {
-    id: string;
-  };
-}
-
-const EditColorPage = ({ params }: EditColorPageProps) => {
-  const { data: colorResponse, isLoading, error } = useGetSingleColorQuery(params.id);
+const EditColorPage = () => {
+  const { id } = useParams() as { id: string };
+  const { data: colorResponse, isLoading, error } = useGetSingleColorQuery(id);
 
   if (isLoading) {
     return (

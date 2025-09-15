@@ -8,14 +8,14 @@ export interface ProductData {
   discountPrice: number
   videoLink?: string
   catagory: string[] // Note: API has typo "catagory" instead of "category"
-  color: string[] // Array of color IDs
-  size: string[] // Array of size IDs
+  color?: string[] // Array of color IDs
+  size?: string[] // Array of size IDs
   createdAt: string
   updatedAt: string
   __v: number
   variants?: {
-    color: string[]
-    size: string[]
+    color?: string[]
+    size?: string[]
   }
 }
 
