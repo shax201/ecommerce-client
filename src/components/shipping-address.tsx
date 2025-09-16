@@ -20,7 +20,7 @@ interface ShippingAddress {
   state: string;
   zip: string;
   country: string;
-  phone: string;
+  phone: number; // Changed to number to match backend
   isDefault: boolean;
 }
 

@@ -101,7 +101,7 @@ export function CheckoutPage() {
         firstName,
         lastName,
         email: userObj?.email || '',
-        phone: defaultAddress.phone,
+        phone: defaultAddress.phone.toString(), // Convert to string for form
         address: defaultAddress.address,
         city: defaultAddress.city,
         state: defaultAddress.state,
@@ -198,8 +198,9 @@ export function CheckoutPage() {
           state: formData.state,
           zip: formData.zip,
           country: formData.country,
-          phone: formData.phone,
+          phone: parseInt(formData.phone) || 0, // Convert to number for backend
           isDefault: true,
+          user: userId, // Add user ID
         };
 
         console.log('💾 [Checkout] Saving shipping address:', addressData);
@@ -207,16 +208,32 @@ export function CheckoutPage() {
         console.log('✅ [Checkout] Shipping address saved successfully');
       }
 
+      // Map payment method to backend expected values
+      const getPaymentMethod = (method: string) => {
+        switch (method) {
+          case "card":
+            return "credit_card";
+          case "paypal":
+            return "paypal";
+          case "apple":
+            return "stripe"; // Apple Pay typically uses Stripe
+          case "cash_on_delivery":
+            return "cash_on_delivery";
+          default:
+            return "credit_card";
+        }
+      };
+
       const orderPayload: any = {
         user: userObj._id,
         productID: productIds,
-        paymentMethod,
+        paymentMethod: getPaymentMethod(paymentMethod),
         totalPrice: finalPrice,
         quantity: cart.items.reduce((acc, item) => acc + item.quantity, 0),
         shipping: {
           _id: defaultAddressData?.data?._id,
           country: formData.country,
-          phone: formData.phone,
+          phone: parseInt(formData.phone) || 0, // Convert phone to number
           zip: formData.zip,
           state: formData.state,
           city: formData.city,
@@ -241,8 +258,11 @@ export function CheckoutPage() {
       if (response?.success) {
         router.push("/account");
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to process checkout:", err);
+      // Show user-friendly error message
+      const errorMessage = err?.data?.message || err?.message || "Failed to process checkout. Please try again.";
+      alert(errorMessage);
     }
   };
 

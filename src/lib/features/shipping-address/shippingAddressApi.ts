@@ -10,7 +10,7 @@ export interface ShippingAddress {
   state: string;
   zip: string;
   country: string;
-  phone: string;
+  phone: number; // Changed to number to match backend
   isDefault: boolean;
   user: string;
   createdAt: string;
@@ -24,8 +24,9 @@ export interface CreateShippingAddressData {
   state: string;
   zip: string;
   country: string;
-  phone: string;
+  phone: number; // Changed to number to match backend
   isDefault?: boolean;
+  user: string; // Add user field
 }
 
 export interface UpdateShippingAddressData {
@@ -35,7 +36,7 @@ export interface UpdateShippingAddressData {
   state?: string;
   zip?: string;
   country?: string;
-  phone?: string;
+  phone?: number; // Changed to number to match backend
   isDefault?: boolean;
 }
 

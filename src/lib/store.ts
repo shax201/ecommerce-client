@@ -9,6 +9,10 @@ import { ordersReducer } from "./features/orders";
 import { couponsReducer } from "./features/coupons";
 import { reportsReducer } from "./features/reports";
 import { attributesReducer } from "./features/attributes";
+import { permissionReducer } from "./features/permissions";
+import { userManagementReducer } from "./features/user-management";
+import { logosReducer } from "./features/logos";
+import { heroSectionsReducer } from "./features/hero-sections";
 import { apiSlice } from "./features/api/apiSlice";
 
 const persistConfig = {
@@ -27,6 +31,10 @@ const rootReducer = combineReducers({
   coupons: couponsReducer,
   reports: reportsReducer,
   attributes: attributesReducer,
+  permissions: permissionReducer,
+  userManagement: userManagementReducer,
+  logos: logosReducer,
+  heroSections: heroSectionsReducer,
   [apiSlice.reducerPath]: apiSlice.reducer,
 });
 const persistedReducer = persistReducer(persistConfig, rootReducer);

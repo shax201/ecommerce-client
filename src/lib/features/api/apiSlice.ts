@@ -21,7 +21,7 @@ const baseQuery = fetchBaseQuery({
     
     // Try localStorage first
     if (typeof window !== 'undefined') {
-      token = localStorage.getItem('user-token');
+      token = localStorage.getItem('admin-token')  || localStorage.getItem('user-token'); 
     }
     
     // Fallback to cookie if localStorage is not available
@@ -70,6 +70,6 @@ const baseQueryWithReauth: BaseQueryFn<
 
 export const apiSlice = createApi({
   baseQuery: baseQueryWithReauth,
-  tagTypes: ["Product", "Category", "ShippingAddress", "Order", "OrderAnalytics", "Coupon", "Report", "ReportTemplate", "SalesReport", "OrdersReport", "ProductsReport", "CustomersReport", "InventoryReport", "CouponsReport", "AnalyticsReport", "FinancialReport", "Color", "Size"],
+  tagTypes: ["Product", "Category", "ShippingAddress", "Order", "OrderAnalytics", "Coupon", "Report", "ReportTemplate", "SalesReport", "OrdersReport", "ProductsReport", "CustomersReport", "InventoryReport", "CouponsReport", "AnalyticsReport", "FinancialReport", "Color", "Size", "Permission", "Role", "UserRole", "CurrentUserPermissions", "UserPermissions", "User", "Logo", "HeroSection"],
   endpoints: (builder) => ({}),
 });

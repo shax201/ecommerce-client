@@ -18,6 +18,8 @@ import {
   Archive,
   DollarSign,
   Settings,
+  Shield,
+  UserCog,
 } from "lucide-react";
 
 import { NavMain } from "@/components/dashboard/nav-main";
@@ -31,6 +33,7 @@ import {
 } from "@/components/ui/sidebar";
 import { NavSecondary } from "./nav-secondary";
 import { NavUser } from "./nav-user";
+import { PermissionGate } from "@/components/common/PermissionGate";
 
 const data = {
   user: {
@@ -41,117 +44,95 @@ const data = {
   navMain: [
     {
       title: "Dashboard",
-      url: "/dashboard",
+      url: "/admin/dashboard",
       icon: Home,
     },
     {
       title: "Attributes",
-      url: "/attributes",
+      url: "/admin/attributes",
       icon: Bookmark,
       submenu: [
         {
           title: "Colors",
-          url: "/attributes/colors",
+          url: "/admin/attributes/colors",
         },
         {
           title: "Sizes",
-          url: "/attributes/sizes",
+          url: "/admin/attributes/sizes",
         },
       ],
     },
     {
       title: "Categories",
-      url: "/categories",
+      url: "/admin/categories",
       icon: Tags,
     },
     {
       title: "Products",
-      url: "/products",
+      url: "/admin/products",
       icon: Package,
     },
     {
       title: "Orders (by Shahadat)",
-      url: "/orders",
+      url: "/admin/orders",
       icon: ShoppingCart,
       submenu: [
         {
           title: "All Orders",
-          url: "/orders/all",
+          url: "/admin/orders/all",
         },
         {
           title: "Track Orders",
-          url: "/orders/track",
+          url: "/admin/orders/track",
         },
         {
           title: "Analytics",
-          url: "/orders/analytics",
+          url: "/admin/orders/analytics",
         },
       ],
     },
     {
       title: "Coupons (by Shahadat)",
-      url: "/coupons",
+      url: "/admin/coupons",
       icon: ShoppingCart,
     },
     {
       title: "Clients",
-      url: "/clients",
+      url: "/admin/clients",
       icon: Users,
     },
     {
+      title: "User Management (by Shahadat)",
+      url: "/admin/users",
+      icon: UserCog,
+    },
+    {
       title: "Content (by Shahadat)",
-      url: "/content",
+      url: "/admin/content",
       icon: FileText,
     },
     {
       title: "Reports (by Shahadat)",
-      url: "/reports",
+      url: "/admin/reports",
       icon: BarChart3,
       submenu: [
-        // {
-        //   title: "Overview",
-        //   url: "/reports",
-        // },
-        // {
-        //   title: "Sales Reports",
-        //   url: "/reports/sales",
-        // },
         {
           title: "Orders Reports",
-          url: "/reports/orders",
+          url: "/admin/reports/orders",
         },
-        // {
-        //   title: "Products Reports",
-        //   url: "/reports/products",
-        // },
-        // {
-        //   title: "Customers Reports",
-        //   url: "/reports/customers",
-        // },
-        // {
-        //   title: "Inventory Reports",
-        //   url: "/reports/inventory",
-        // },
-        // {
-        //   title: "Coupons Reports",
-        //   url: "/reports/coupons",
-        // },
-        // {
-        //   title: "Analytics Reports",
-        //   url: "/reports/analytics",
-        // },
-        // {
-        //   title: "Financial Reports",
-        //   url: "/reports/financial",
-        // },
       ],
+    },
+    {
+      title: "Permissions (by Shahadat)",
+      url: "/admin/permissions",
+      icon: Shield,
     },
   ],
 
   navSecondary: [
     {
       title: "Settings  (by Shahadat)",
-      url: "/dashboard/settings",
+      url: "/admin/dashboard/settings",
       icon: SettingsIcon,
     },
 

@@ -8,8 +8,25 @@ export interface User {
   firstName: string;
   lastName: string;
   email: string;
-  phone: string;
-  role: string;
+  phone?: string;
+  role: 'admin' | 'client';
+  status: 'active' | 'inactive' | 'suspended';
+  profileImage?: string;
+  address?: {
+    street: string;
+    city: string;
+    state: string;
+    zipCode: string;
+    country: string;
+  };
+  preferences?: {
+    language: string;
+    currency: string;
+    notifications: boolean;
+  };
+  permissions?: string[];
+  isEmailVerified: boolean;
+  lastLogin?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -23,6 +40,15 @@ export interface AuthResponse {
   };
 }
 
+export interface AdminAuthResponse {
+  success: boolean;
+  message: string;
+  data: {
+    admin: User;
+    token: string;
+  };
+}
+
 export interface LoginCredentials {
   email: string;
   password: string;
@@ -31,9 +57,10 @@ export interface LoginCredentials {
 export interface SignupCredentials {
   firstName: string;
   lastName: string;
-  phone: number;
+  phone?: number;
   email: string;
   password: string;
+  role?: 'client';
 }
 
 export interface AuthState {
@@ -65,6 +92,12 @@ export const authApi = apiSlice.injectEndpoints({
       transformResponse: async (response: AuthResponse) => {
         // Store token and user data in localStorage after successful login
         if (typeof window !== 'undefined' && response.success) {
+          // Clear admin data before storing client data
+          localStorage.removeItem("admin-token");
+          localStorage.removeItem("admin");
+          console.log("✅ [Client Login] Cleared admin tokens and data");
+          
+          // Store client data
           localStorage.setItem("user-token", response.data.token);
           localStorage.setItem("client", JSON.stringify(response.data.client));
           console.log("✅ [Auth API] Token and user data stored in localStorage after login");
@@ -85,11 +118,20 @@ export const authApi = apiSlice.injectEndpoints({
       query: (credentials) => ({
         url: "/clients/",
         method: "POST",
-        body: credentials,
+        body: {
+          ...credentials,
+          role: 'client' // Ensure role is set to client
+        },
       }),
       transformResponse: async (response: AuthResponse) => {
         // Store token and user data in localStorage after successful signup
         if (typeof window !== 'undefined' && response.success) {
+          // Clear admin data before storing client data
+          localStorage.removeItem("admin-token");
+          localStorage.removeItem("admin");
+          console.log("✅ [Client Signup] Cleared admin tokens and data");
+          
+          // Store client data
           localStorage.setItem("user-token", response.data.token);
           localStorage.setItem("client", JSON.stringify(response.data.client));
           console.log("✅ [Auth API] Token and user data stored in localStorage after signup");
@@ -123,11 +165,13 @@ export const authApi = apiSlice.injectEndpoints({
         method: "POST",
       }),
       transformResponse: async () => {
-        // Clear localStorage on logout
+        // Clear all localStorage data on logout
         if (typeof window !== 'undefined') {
           localStorage.removeItem("user-token");
           localStorage.removeItem("client");
-          console.log("✅ [Auth API] User data cleared from localStorage");
+          localStorage.removeItem("admin-token");
+          localStorage.removeItem("admin");
+          console.log("✅ [Auth API] All user data cleared from localStorage");
           
           // Clear cookie
           try {
@@ -148,6 +192,39 @@ export const authApi = apiSlice.injectEndpoints({
         body: { email },
       }),
     }),
+
+    // Admin login
+    adminLogin: builder.mutation<AdminAuthResponse, LoginCredentials>({
+      query: (credentials) => ({
+        url: "/admins/login", // Correct admin login endpoint
+        method: "POST",
+        body: credentials,
+      }),
+      transformResponse: async (response: AdminAuthResponse) => {
+        // Store token and admin data in localStorage after successful login
+        if (typeof window !== 'undefined' && response.success) {
+          // Clear client data before storing admin data
+          localStorage.removeItem("user-token");
+          localStorage.removeItem("client");
+          console.log("✅ [Admin Login] Cleared client tokens and data");
+          
+          // Store admin data
+          localStorage.setItem("admin-token", response.data.token);
+          localStorage.setItem("admin", JSON.stringify(response.data.admin));
+          // Also store as user-token for middleware compatibility
+          localStorage.setItem("user-token", response.data.token);
+          console.log("✅ [Admin Auth API] Token and admin data stored in localStorage after login");
+          
+          // Set cookie for middleware
+          try {
+            await setAuthCookie(response.data.token);
+          } catch (error) {
+            console.error("❌ [Admin Auth API] Failed to set cookie:", error);
+          }
+        }
+        return response;
+      },
+    }),
   }),
 });
 
@@ -159,4 +236,5 @@ export const {
   useGetCurrentUserQuery,
   useLogoutMutation,
   useForgotPasswordMutation,
+  useAdminLoginMutation,
 } = authApi;

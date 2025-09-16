@@ -1,181 +1,171 @@
-// import { NextResponse } from "next/server";
-// import type { NextRequest } from "next/server";
-
-// import { jwtVerify } from "jose";
-
-// const secret = new TextEncoder().encode(
-//   process.env.JWT_SECRET || "supersecretjwtkey"
-// );
-
-// // Helper function to get token from request
-// function getTokenFromRequest(req: NextRequest): string | null {
-//   // First try to get from cookies
-//   const cookieToken = req.cookies.get("user-token")?.value;
-//   if (cookieToken) {
-//     return cookieToken;
-//   }
-
-//   // Then try to get from Authorization header
-//   const authHeader = req.headers.get("authorization");
-//   if (authHeader && authHeader.startsWith("Bearer ")) {
-//     return authHeader.substring(7);
-//   }
-
-//   return null;
-// }
-
-// // Helper function to verify JWT token
-// async function verifyToken(token: string): Promise<{ valid: boolean; payload?: any; error?: string }> {
-//   try {
-//     const { payload } = await jwtVerify(token, secret);
-//     return { valid: true, payload };
-//   } catch (error) {
-//     console.log("JWT verification error:", error);
-//     return { valid: false, error: "Invalid or expired token" };
-//   }
-// }
-
-// export async function middleware(req: NextRequest) {
-//   const token = getTokenFromRequest(req);
-//   const pathname = req.nextUrl.pathname;
-
-//   // Define routes
-//   const publicRoutes = ["/auth", "/signin", "/signup", "/forgot-password", "/"];
-//   const privateRoutes = [
-//     "/dashboard",
-//     "/profile", 
-//     "/settings",
-//     "/checkout",
-//     "/account",
-//     "/my-orders",
-//   ];
-//   const adminRoutes = ["/dashboard"];
-
-//   // Check if current path is public, private, or admin
-//   const isPublicRoute = publicRoutes.some((route) => pathname.startsWith(route));
-//   const isPrivateRoute = privateRoutes.some((route) => pathname.startsWith(route));
-//   const isAdminRoute = adminRoutes.some((route) => pathname.startsWith(route));
-
-//   // If no token and trying to access private route -> redirect to signin
-//   if (!token && isPrivateRoute) {
-//     console.log("🔒 [Middleware] No token found, redirecting to signin");
-//     return NextResponse.redirect(new URL("/signin", req.url));
-//   }
-
-//   // If token exists, verify it
-//   if (token) {
-//     const verification = await verifyToken(token);
-    
-//     if (!verification.valid) {
-//       console.log("❌ [Middleware] Invalid token, redirecting to signin");
-//       // Clear invalid token from cookies
-//       const response = NextResponse.redirect(new URL("/signin", req.url));
-//       response.cookies.delete("user-token");
-//       return response;
-//     }
-
-//     const userRole = verification.payload?.role;
-//     console.log("✅ [Middleware] Valid token, user role:", userRole);
-
-//     // If user is logged in and tries to access public auth routes -> redirect to account
-//     if (isPublicRoute && pathname !== "/") {
-//       console.log("🔄 [Middleware] Authenticated user accessing auth route, redirecting to account");
-//       return NextResponse.redirect(new URL("/account", req.url));
-//     }
-
-//     // If trying to access admin routes but not admin -> redirect to account
-//     if (isAdminRoute && userRole !== "admin") {
-//       console.log("🚫 [Middleware] Non-admin user trying to access admin route, redirecting to account");
-//       return NextResponse.redirect(new URL("/account", req.url));
-//     }
-//   }
-
-//   // Allow the request to proceed
-//   console.log("✅ [Middleware] Request allowed for:", pathname);
-//   return NextResponse.next();
-// }
-
-// // Tell Next.js which paths to match
-// export const config = {
-//   matcher: [
-//     "/auth/:path*",
-//     "/signin",
-//     "/signup", 
-//     "/forgot-password",
-//     "/checkout",
-//     "/account",
-//     "/my-orders",
-//     "/dashboard/:path*",
-//     "/profile/:path*",
-//     "/settings/:path*",
-//   ],
-// };
-
-
-
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-
 import { jwtVerify } from "jose";
+
 const secret = new TextEncoder().encode(
   process.env.JWT_SECRET || "supersecretjwtkey"
 );
 
+// Define route permissions mapping
+const ROUTE_PERMISSIONS: Record<string, { resource: string; action: string }> = {
+  '/admin/orders': { resource: 'orders', action: 'read' },
+  '/admin/orders/create': { resource: 'orders', action: 'create' },
+  '/admin/orders/edit': { resource: 'orders', action: 'update' },
+  '/admin/orders/delete': { resource: 'orders', action: 'delete' },
+  
+  '/admin/products': { resource: 'products', action: 'read' },
+  '/admin/products/create': { resource: 'products', action: 'create' },
+  '/admin/products/edit': { resource: 'products', action: 'update' },
+  '/admin/products/delete': { resource: 'products', action: 'delete' },
+  
+  '/admin/categories': { resource: 'categories', action: 'read' },
+  '/admin/categories/create': { resource: 'categories', action: 'create' },
+  '/admin/categories/edit': { resource: 'categories', action: 'update' },
+  '/admin/categories/delete': { resource: 'categories', action: 'delete' },
+  
+  '/admin/coupons': { resource: 'coupons', action: 'read' },
+  '/admin/coupons/create': { resource: 'coupons', action: 'create' },
+  '/admin/coupons/edit': { resource: 'coupons', action: 'update' },
+  '/admin/coupons/delete': { resource: 'coupons', action: 'delete' },
+  
+  '/admin/reports': { resource: 'reports', action: 'read' },
+  '/admin/reports/create': { resource: 'reports', action: 'create' },
+  '/admin/reports/edit': { resource: 'reports', action: 'update' },
+  '/admin/reports/delete': { resource: 'reports', action: 'delete' },
+  
+  '/admin/users': { resource: 'users', action: 'read' },
+  '/admin/users/create': { resource: 'users', action: 'create' },
+  '/admin/users/edit': { resource: 'users', action: 'update' },
+  '/admin/users/delete': { resource: 'users', action: 'delete' },
+  
+  '/admin/permissions': { resource: 'users', action: 'read' },
+  '/admin/company-settings': { resource: 'company-settings', action: 'read' },
+  '/admin/company-settings/edit': { resource: 'company-settings', action: 'update' },
+};
+
+// Helper function to get token from request
+function getTokenFromRequest(req: NextRequest): string | null {
+  // First try to get from cookies
+  const cookieToken = req.cookies.get("user-token")?.value;
+  if (cookieToken) {
+    return cookieToken;
+  }
+
+  // Then try to get from Authorization header
+  const authHeader = req.headers.get("authorization");
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    return authHeader.substring(7);
+  }
+
+  return null;
+}
+
+// Helper function to verify JWT token
+async function verifyToken(token: string): Promise<{ valid: boolean; payload?: any; error?: string }> {
+  try {
+    const { payload } = await jwtVerify(token, secret);
+    return { valid: true, payload };
+  } catch (error) {
+    console.log("JWT verification error:", error);
+    return { valid: false, error: "Invalid or expired token" };
+  }
+}
+
+// Helper function to check if user has permission
+async function checkUserPermission(
+  token: string,
+  resource: string, 
+  action: string
+): Promise<boolean> {
+  try {
+    const response = await fetch(`${process.env.BACKEND_URL || 'http://localhost:5000'}/api/v1/permissions/check-my-permission`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ resource, action }),
+    });
+    
+    if (response.ok) {
+      const result = await response.json();
+      return result.data?.hasPermission || false;
+    }
+    
+    return false;
+  } catch (error) {
+    console.error('Error checking permission:', error);
+    return false;
+  }
+}
+
 export async function middleware(req: NextRequest) {
-  const token = req.cookies.get("user-token")?.value;
+  const token = getTokenFromRequest(req);
+  const pathname = req.nextUrl.pathname;
 
   // Define routes
-  const publicRoutes = ["/auth", "/signin", "/signup", "/forgot-password"];
+  const publicRoutes = ["/auth", "/signin", "/signup", "/forgot-password", "/"];
   const privateRoutes = [
     "/dashboard",
-    "/profile",
+    "/profile", 
     "/settings",
     "/checkout",
     "/account",
+    "/my-orders",
+    "/admin"
   ];
 
-  const pathname = req.nextUrl.pathname;
-
-  // If user is logged in and tries to access public route -> redirect to dashboard
-  if (token && publicRoutes.some((route) => pathname.startsWith(route))) {
-    return NextResponse.redirect(new URL("/account", req.url));
+  // Check if route is public
+  const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route));
+  if (isPublicRoute) {
+    return NextResponse.next();
   }
 
-  // If user is NOT logged in and tries to access private route -> redirect to login
-  if (!token && privateRoutes.some((route) => pathname.startsWith(route))) {
-    return NextResponse.redirect(new URL("/signin", req.url));
+  // Check if route is private
+  const isPrivateRoute = privateRoutes.some(route => pathname.startsWith(route));
+  if (!isPrivateRoute) {
+    return NextResponse.next();
   }
 
-  if (pathname.startsWith("/dashboard")) {
-    try {
-      const { payload } = await jwtVerify(token as string, secret);
+  // If no token, redirect to login
+  if (!token) {
+    return NextResponse.redirect(new URL('/auth', req.url));
+  }
 
-      if (payload.role !== "admin") {
-        return NextResponse.redirect(new URL("/account", req.url));
+  // Verify token
+  const tokenResult = await verifyToken(token);
+  if (!tokenResult.valid) {
+    return NextResponse.redirect(new URL('/auth', req.url));
+  }
+
+  // Check permissions for admin routes
+  if (pathname.startsWith('/admin')) {
+    const requiredPermission = ROUTE_PERMISSIONS[pathname];
+    if (requiredPermission) {
+      const hasPermission = await checkUserPermission(
+        token, 
+        requiredPermission.resource, 
+        requiredPermission.action
+      );
+      
+      if (!hasPermission) {
+        return NextResponse.redirect(new URL('/unauthorized', req.url));
       }
-      return NextResponse.next();
-    } catch (err) {
-      console.log("err", err);
-      // Invalid or expired token
-      // return NextResponse.redirect(new URL("/signin", req.url));
     }
   }
 
-  // Default allow
   return NextResponse.next();
 }
 
-// Tell Next.js which paths to match
 export const config = {
   matcher: [
-    "/auth/:path*",
-    "/signin",
-    "/signup",
-    "/checkout",
-    "/forgot-password",
-    "/dashboard/:path*",
-    "/profile/:path*",
-    "/settings/:path*",
-    "/account",
+    /*
+     * Match all request paths except for the ones starting with:
+     * - api (API routes)
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     */
+    '/((?!api|_next/static|_next/image|favicon.ico).*)',
   ],
 };

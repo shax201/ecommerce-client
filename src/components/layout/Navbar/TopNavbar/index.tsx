@@ -222,7 +222,9 @@ const TopNavbar = ({ dynamicMenus, logo }: TopNavbarProps) => {
                 <div className="animate-pulse bg-gray-200 h-6 w-18 rounded"></div>
               </div>
             ) : hasError ? (
-              <div className="text-red-500 text-sm">Error loading menus</div>
+              <div className="text-red-500 text-sm">
+                {/* Error loading menus */}
+                </div>
             ) : (
               menuData.map((item) => (
                 <React.Fragment key={item.id}>

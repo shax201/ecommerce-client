@@ -6,6 +6,7 @@ import { makeStore } from "../lib/store";
 import { PersistGate } from "redux-persist/integration/react";
 import SpinnerbLoader from "@/components/ui/SpinnerbLoader";
 import { Toaster } from "@/components/ui/sonner";
+import { PermissionProvider } from "@/components/providers/PermissionProvider";
 
 type Props = {
   children: React.ReactNode;
@@ -24,8 +25,10 @@ const Providers = ({ children }: Props) => {
         }
         persistor={persistor}
       >
-        {children}
-        <Toaster />
+        <PermissionProvider>
+          {children}
+          <Toaster />
+        </PermissionProvider>
       </PersistGate>
     </Provider>
   );

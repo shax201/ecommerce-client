@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import {
   useLoginMutation,
+  useAdminLoginMutation,
   useSignupMutation,
   useForgotPasswordMutation,
   setUser,
@@ -36,6 +37,7 @@ import { useRouter } from "next/navigation";
 
 export default function AuthForm() {
   const [mode, setMode] = useState<"signin" | "signup" | "forgot">("signin");
+  const [userType, setUserType] = useState<"admin" | "client">("client");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const router = useRouter();
@@ -46,6 +48,7 @@ export default function AuthForm() {
 
   // Redux mutations
   const [login, { isLoading: isLoginLoading, error: loginError }] = useLoginMutation();
+  const [adminLogin, { isLoading: isAdminLoginLoading, error: adminLoginError }] = useAdminLoginMutation();
   const [signup, { isLoading: isSignupLoading, error: signupError }] = useSignupMutation();
   const [forgotPassword, { isLoading: isForgotPasswordLoading, error: forgotPasswordError }] = useForgotPasswordMutation();
 
@@ -68,7 +71,7 @@ export default function AuthForm() {
 
 
 
-  const isPending = isLoginLoading || isSignupLoading || isForgotPasswordLoading;
+  const isPending = isLoginLoading || isAdminLoginLoading || isSignupLoading || isForgotPasswordLoading;
 
   // Form handlers
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -84,10 +87,30 @@ export default function AuthForm() {
     const errors: Record<string, string> = {};
 
     if (mode === "signup") {
-      if (!formData.firstName) errors.firstName = "First name is required";
-      if (!formData.lastName) errors.lastName = "Last name is required";
-      if (!formData.phone) errors.phone = "Phone number is required";
-      if (!formData.password) errors.password = "Password is required";
+      if (!formData.firstName) {
+        errors.firstName = "First name is required";
+      } else if (formData.firstName.length < 2) {
+        errors.firstName = "First name must be at least 2 characters";
+      }
+      
+      if (!formData.lastName) {
+        errors.lastName = "Last name is required";
+      } else if (formData.lastName.length < 2) {
+        errors.lastName = "Last name must be at least 2 characters";
+      }
+      
+      if (formData.phone && !/^\d+$/.test(formData.phone)) {
+        errors.phone = "Phone number must contain only digits";
+      }
+      
+      if (!formData.password) {
+        errors.password = "Password is required";
+      } else if (formData.password.length < 8) {
+        errors.password = "Password must be at least 8 characters";
+      } else if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(formData.password)) {
+        errors.password = "Password must contain at least one uppercase letter, one lowercase letter, and one number";
+      }
+      
       if (formData.password !== formData.confirmPassword) {
         errors.confirmPassword = "Passwords do not match";
       }
@@ -101,6 +124,8 @@ export default function AuthForm() {
 
     if (mode !== "forgot" && !formData.password) {
       errors.password = "Password is required";
+    } else if (mode !== "forgot" && formData.password && formData.password.length < 8) {
+      errors.password = "Password must be at least 8 characters";
     }
 
     setFormErrors(errors);
@@ -113,15 +138,44 @@ export default function AuthForm() {
 
     try {
       dispatch(clearError());
-      const result = await login({
-        email: formData.email,
-        password: formData.password,
-      }).unwrap();
+      let result;
 
-      if (result.success) {
-        dispatch(setUser(result.data.client));
-        setSuccessMessage("Login successful!");
-        router.push("/");
+      if (userType === "admin") {
+        // Clear client data before admin login
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem("user-token");
+          localStorage.removeItem("client");
+          console.log("✅ [Admin Login] Cleared client tokens and data");
+        }
+
+        result = await adminLogin({
+          email: formData.email,
+          password: formData.password,
+        }).unwrap();
+
+        if (result.success) {
+          dispatch(setUser(result.data.admin));
+          setSuccessMessage("Admin login successful!");
+          router.push("/admin");
+        }
+      } else {
+        // Clear admin data before client login
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem("admin-token");
+          localStorage.removeItem("admin");
+          console.log("✅ [Client Login] Cleared admin tokens and data");
+        }
+
+        result = await login({
+          email: formData.email,
+          password: formData.password,
+        }).unwrap();
+
+        if (result.success) {
+          dispatch(setUser(result.data.client));
+          setSuccessMessage("Client login successful!");
+          router.push("/");
+        }
       }
     } catch (error: any) {
       dispatch(setError(error.data?.message || "Login failed"));
@@ -134,13 +188,20 @@ export default function AuthForm() {
 
     try {
       dispatch(clearError());
-      const result = await signup({
+      const signupData: any = {
         firstName: formData.firstName,
         lastName: formData.lastName,
-        phone: parseInt(formData.phone),
         email: formData.email,
         password: formData.password,
-      }).unwrap();
+        role: 'client'
+      };
+
+      // Only include phone if provided
+      if (formData.phone) {
+        signupData.phone = parseInt(formData.phone);
+      }
+
+      const result = await signup(signupData).unwrap();
 
       if (result.success) {
         dispatch(setUser(result.data.client));
@@ -148,7 +209,9 @@ export default function AuthForm() {
         router.push("/");
       }
     } catch (error: any) {
-      dispatch(setError(error.data?.message || "Signup failed"));
+      console.error("Signup error:", error);
+      const errorMessage = error.data?.message || error.message || "Signup failed";
+      dispatch(setError(errorMessage));
     }
   };
 
@@ -170,7 +233,7 @@ export default function AuthForm() {
       case "signup":
         return "Create Account";
       case "signin":
-        return "Welcome Back";
+        return userType === "admin" ? "Admin Login" : "Welcome Back";
       case "forgot":
         return "Reset Password";
     }
@@ -181,7 +244,9 @@ export default function AuthForm() {
       case "signup":
         return "Sign up to get started with your account";
       case "signin":
-        return "Sign in to your account to continue";
+        return userType === "admin" 
+          ? "Sign in to your admin account to access the dashboard" 
+          : "Sign in to your account to continue";
       case "forgot":
         return "Enter your email to receive a password reset link";
     }
@@ -274,7 +339,7 @@ export default function AuthForm() {
                 {/* Phone Field */}
                 <div className="space-y-2">
                   <Label htmlFor="phone" className="text-sm font-medium text-slate-700">
-                    Phone Number
+                    Phone Number <span className="text-slate-400">(Optional)</span>
                   </Label>
                   <Input
                     id="phone"
@@ -285,7 +350,6 @@ export default function AuthForm() {
                     placeholder="Enter your phone number"
                     className={`pl-3 ${formErrors.phone ? "border-red-500 focus:border-red-500" : "border-slate-200 focus:border-emerald-500"}`}
                     disabled={isPending}
-                    required
                   />
                   {formErrors.phone && (
                     <p className="text-sm text-red-600">{formErrors.phone}</p>
@@ -352,6 +416,25 @@ export default function AuthForm() {
                   {formErrors.password && (
                     <p className="text-sm text-red-600">{formErrors.password}</p>
                   )}
+                  {formData.password && !formErrors.password && (
+                    <div className="text-xs text-slate-600 space-y-1">
+                      <p>Password requirements:</p>
+                      <ul className="list-disc list-inside space-y-0.5">
+                        <li className={formData.password.length >= 8 ? "text-emerald-600" : "text-slate-400"}>
+                          At least 8 characters
+                        </li>
+                        <li className={/[a-z]/.test(formData.password) ? "text-emerald-600" : "text-slate-400"}>
+                          One lowercase letter
+                        </li>
+                        <li className={/[A-Z]/.test(formData.password) ? "text-emerald-600" : "text-slate-400"}>
+                          One uppercase letter
+                        </li>
+                        <li className={/\d/.test(formData.password) ? "text-emerald-600" : "text-slate-400"}>
+                          One number
+                        </li>
+                      </ul>
+                    </div>
+                  )}
                 </div>
 
                 {/* Confirm Password Field */}
@@ -413,6 +496,43 @@ export default function AuthForm() {
             {/* Sign In Form */}
             {mode === "signin" && (
               <form onSubmit={handleLogin} className="space-y-4">
+                {/* User Type Selection */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-slate-700">
+                    Login As
+                  </Label>
+                  <div className="flex space-x-4">
+                    <Button
+                      type="button"
+                      variant={userType === "client" ? "default" : "outline"}
+                      onClick={() => setUserType("client")}
+                      className={`flex-1 ${
+                        userType === "client" 
+                          ? "bg-emerald-600 hover:bg-emerald-700 text-white" 
+                          : "border-slate-200 text-slate-700 hover:bg-slate-50"
+                      }`}
+                      disabled={isPending}
+                    >
+                      <User className="w-4 h-4 mr-2" />
+                      Client
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={userType === "admin" ? "default" : "outline"}
+                      onClick={() => setUserType("admin")}
+                      className={`flex-1 ${
+                        userType === "admin" 
+                          ? "bg-emerald-600 hover:bg-emerald-700 text-white" 
+                          : "border-slate-200 text-slate-700 hover:bg-slate-50"
+                      }`}
+                      disabled={isPending}
+                    >
+                      <User className="w-4 h-4 mr-2" />
+                      Admin
+                    </Button>
+                  </div>
+                </div>
+
                 {/* Email Field */}
                 <div className="space-y-2">
                   <Label htmlFor="email" className="text-sm font-medium text-slate-700">
@@ -484,10 +604,10 @@ export default function AuthForm() {
                   {isPending ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Signing In...
+                      {userType === "admin" ? "Signing in as Admin..." : "Signing In..."}
                     </>
                   ) : (
-                    "Sign In"
+                    userType === "admin" ? "Sign In as Admin" : "Sign In"
                   )}
                 </Button>
               </form>
