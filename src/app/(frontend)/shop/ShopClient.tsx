@@ -12,18 +12,10 @@ import {
 import MobileFilters from "@/components/shop-page/filters/MobileFilters";
 import Filters from "@/components/shop-page/filters";
 import { FiSliders } from "react-icons/fi";
-import {
-  Pagination,
-  PaginationContent,
-  PaginationEllipsis,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from "@/components/ui/pagination";
+import ProductPagination from "@/components/common/ProductPagination";
 import ProductCard from "@/components/common/ProductCard";
 import ProductCardSkeleton from "@/components/common/Skeleton";
-import { useShopISR } from "@/hooks/use-shop-isr";
+import { useReduxProducts } from "@/hooks/useReduxProducts";
 import { useRouter, useSearchParams } from "next/navigation";
 
 interface ShopClientProps {
@@ -46,36 +38,87 @@ export default function ShopClient({
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const [currentPage, setCurrentPage] = useState(1);
   const [sortBy, setSortBy] = useState(filters?.sortBy || "most-popular");
 
+  // Use Redux products hook instead of ISR hook
   const {
     products,
     pagination,
-    loading,
+    isLoading: loading,
+    isError: hasError,
     error,
-    dataSource,
-    performanceMetrics,
-    loadMore,
-    refresh,
-  } = useShopISR({
-    initialProducts,
-    initialPagination,
-    category,
-    filters,
-  });
+    updateSorting,
+    updatePagination,
+    updateSearch,
+    updatePriceRange,
+    updateCategory,
+    clearAllFilters,
+    goToNextPage,
+    goToPrevPage,
+    goToPage,
+    refreshProducts,
+  } = useReduxProducts();
 
+  // Initialize filters from URL parameters and props
+  useEffect(() => {
+    // Get all URL parameters
+    const urlCategory = searchParams.get('category');
+    const urlMinPrice = searchParams.get('minPrice');
+    const urlMaxPrice = searchParams.get('maxPrice');
+    const urlColor = searchParams.get('color');
+    const urlSize = searchParams.get('size');
+    const urlSortBy = searchParams.get('sortBy');
+    const urlPage = searchParams.get('page');
 
-  console.log('products', products )
+    // Update price range from URL or props
+    if (urlMinPrice && urlMaxPrice) {
+      updatePriceRange(parseFloat(urlMinPrice), parseFloat(urlMaxPrice));
+    } else if (filters?.minPrice !== undefined && filters?.maxPrice !== undefined) {
+      updatePriceRange(filters.minPrice, filters.maxPrice);
+    }
+
+    // Update category from URL or props
+    if (urlCategory) {
+      updateCategory(urlCategory);
+    } else if (category) {
+      updateCategory(category);
+    }
+
+    // Update color from URL
+    if (urlColor) {
+      // This will be handled by the ColorsSection component
+    }
+
+    // Update size from URL
+    if (urlSize) {
+      // This will be handled by the SizeSection component
+    }
+
+    // Update sorting from URL or props
+    if (urlSortBy) {
+      const sortOrder = urlSortBy === 'price-high-low' ? 'desc' : 'asc';
+      updateSorting(urlSortBy, sortOrder);
+    } else if (filters?.sortBy) {
+      const sortOrder = filters.sortBy === 'price-high-low' ? 'desc' : 'asc';
+      updateSorting(filters.sortBy, sortOrder);
+    }
+
+    // Update page from URL
+    if (urlPage) {
+      const pageNumber = parseInt(urlPage);
+      if (pageNumber > 0) {
+        updatePagination(pageNumber);
+      }
+    }
+  }, [searchParams, filters, category, updatePriceRange, updateCategory, updateSorting, updatePagination]);
+
   // Debug logging (only in development)
   if (process.env.NODE_ENV === "development") {
-    console.log("🔍 Shop ISR Debug:", {
+    console.log("🔍 Redux Shop Debug:", {
       loading,
-      error,
+      hasError,
       productsCount: products.length,
-      dataSource,
-      performanceMetrics,
-      currentPage,
+      pagination,
       sortBy,
       category,
     });
@@ -83,8 +126,7 @@ export default function ShopClient({
 
   // Handle pagination
   const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-    loadMore(page);
+    goToPage(page);
 
     // Update URL
     const params = new URLSearchParams(searchParams.toString());
@@ -95,6 +137,22 @@ export default function ShopClient({
   // Handle sorting
   const handleSortChange = (newSortBy: string) => {
     setSortBy(newSortBy);
+    
+    // Map frontend sort values to backend sort values
+    const sortByMap: Record<string, 'createdAt' | 'updatedAt' | 'price' | 'rating' | 'popularity'> = {
+      'most-popular': 'popularity',
+      'newest': 'createdAt',
+      'price-low-high': 'price',
+      'price-high-low': 'price',
+      'rating': 'rating',
+      'name-a-z': 'createdAt',
+      'name-z-a': 'createdAt',
+    };
+    
+    const mappedSortBy = sortByMap[newSortBy] || 'popularity';
+    const sortOrder: 'asc' | 'desc' = newSortBy === 'price-high-low' ? 'desc' : 'asc';
+    
+    updateSorting(mappedSortBy, sortOrder);
 
     // Update URL
     const params = new URLSearchParams(searchParams.toString());
@@ -127,9 +185,9 @@ export default function ShopClient({
                 <span className="text-sm md:text-base text-black/60 mr-3">
                   Showing{" "}
                   {products.length > 0
-                    ? `${(currentPage - 1) * 12 + 1}-${Math.min(currentPage * 12, pagination?.total || 0)}`
+                    ? `${(pagination.currentPage - 1) * 12 + 1}-${Math.min(pagination.currentPage * 12, pagination.totalProducts || 0)}`
                     : "0"}{" "}
-                  of {pagination?.total || 0} Products
+                  of {pagination.totalProducts || 0} Products
                 </span>
                 <div className="flex items-center">
                   Sort by:{" "}
@@ -163,82 +221,25 @@ export default function ShopClient({
 
               {products.length === 0 && !loading && (
                 <div className="col-span-full text-center text-black/60">
-                  {error ? error : "No products found"}
+                  {hasError ? (
+                    error && 'data' in error && error.data && typeof error.data === 'object' && 'message' in error.data 
+                      ? (error.data as any).message 
+                      : error && 'message' in error ? (error as any).message : "Failed to load products"
+                  ) : "No products found"}
                 </div>
               )}
             </div>
 
-            {/* Pagination */}
-            {pagination && pagination.totalPages > 1 && (
-              <>
-                <hr className="border-t-black/10" />
-                <Pagination className="justify-between">
-                  <PaginationPrevious
-                    href="#"
-                    className="border border-black/10"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      if (currentPage > 1) {
-                        handlePageChange(currentPage - 1);
-                      }
-                    }}
-                  />
-                  <PaginationContent>
-                    {Array.from(
-                      { length: pagination.totalPages },
-                      (_, i) => i + 1
-                    )
-                      .filter((page) => {
-                        // Show first, last, current, and pages around current
-                        const current = currentPage;
-                        return (
-                          page === 1 ||
-                          page === pagination.totalPages ||
-                          Math.abs(page - current) <= 1
-                        );
-                      })
-                      .map((page, index, array) => {
-                        // Add ellipsis where needed
-                        const prevPage = array[index - 1];
-                        const showEllipsis = prevPage && page - prevPage > 1;
-
-                        return (
-                          <React.Fragment key={page}>
-                            {showEllipsis && (
-                              <PaginationItem>
-                                <PaginationEllipsis className="text-black/50 font-medium text-sm" />
-                              </PaginationItem>
-                            )}
-                            <PaginationItem>
-                              <PaginationLink
-                                href="#"
-                                className="text-black/50 font-medium text-sm"
-                                isActive={page === currentPage}
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  handlePageChange(page);
-                                }}
-                              >
-                                {page}
-                              </PaginationLink>
-                            </PaginationItem>
-                          </React.Fragment>
-                        );
-                      })}
-                  </PaginationContent>
-                  <PaginationNext
-                    href="#"
-                    className="border border-black/10"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      if (currentPage < pagination.totalPages) {
-                        handlePageChange(currentPage + 1);
-                      }
-                    }}
-                  />
-                </Pagination>
-              </>
-            )}
+            {/* Enhanced Pagination */}
+            <ProductPagination
+              pagination={pagination}
+              onPageChange={handlePageChange}
+              isLoading={loading}
+              itemsPerPage={12}
+              showInfo={true}
+              showJumpButtons={pagination.totalPages > 5}
+              className="mt-8"
+            />
           </div>
         </div>
       </div>

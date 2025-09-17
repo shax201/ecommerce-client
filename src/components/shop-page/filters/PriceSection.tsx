@@ -10,14 +10,24 @@ import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "@/lib/store";
 import { setPriceRange } from "@/lib/features/products/productsSlice";
 
-const PriceSection = () => {
+interface PriceSectionProps {
+  onPriceChange?: (priceRange: { min: number; max: number }) => void;
+}
+
+const PriceSection = ({ onPriceChange }: PriceSectionProps) => {
   const dispatch = useDispatch();
   const { minPrice, maxPrice } = useSelector(
     (state: RootState) => state.products
   );
 
   const handlePriceChange = (values: number[]) => {
-    dispatch(setPriceRange({ min: values[0], max: values[1] }));
+    const priceRange = { min: values[0], max: values[1] };
+    dispatch(setPriceRange(priceRange));
+    
+    // Call the parent's price change handler if provided
+    if (onPriceChange) {
+      onPriceChange(priceRange);
+    }
   };
 
   return (

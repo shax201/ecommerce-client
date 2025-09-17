@@ -1,11 +1,12 @@
 "use client";
 
 import { useGetCategoriesQuery } from "@/lib/features/products/productApi";
-import { setCategories } from "@/lib/features/products/productsSlice";
+import { setCategory, updateFilters } from "@/lib/features/products/productsSlice";
 import Link from "next/link";
 import React from "react";
 import { MdKeyboardArrowRight } from "react-icons/md";
 import { useDispatch } from "react-redux";
+import { useRouter, useSearchParams } from "next/navigation";
 
 type Category = {
   title: string;
@@ -37,10 +38,21 @@ const categoriesData: Category[] = [
 
 const CategoriesSection = () => {
   const dispatch = useDispatch();
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
   const { data, isLoading, error } = useGetCategoriesQuery();
+  
   const handleCategory = (catId: string) => {
-    dispatch(setCategories(catId));
+    dispatch(setCategory(catId));
+    // Update Redux filters with category
+    dispatch(updateFilters({ categories: [catId] }));
+    
+    // Update URL
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('category', catId);
+    params.set('page', '1'); // Reset to first page
+    router.push(`/shop?${params.toString()}`, { scroll: false });
   };
   return (
     <div className="flex flex-col text-black/60">
