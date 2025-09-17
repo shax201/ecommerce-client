@@ -36,6 +36,8 @@ const baseQuery = fetchBaseQuery({
     } else {
       console.log('⚠️ [Redux API] No token found in localStorage or cookies');
     }
+    
+    console.log('🌐 [Redux API] Making request to:', process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000/api/v1");
 
     return headers;
   },
@@ -70,6 +72,6 @@ const baseQueryWithReauth: BaseQueryFn<
 
 export const apiSlice = createApi({
   baseQuery: baseQueryWithReauth,
-  tagTypes: ["Product", "Category", "ShippingAddress", "Order", "OrderAnalytics", "Coupon", "Report", "ReportTemplate", "SalesReport", "OrdersReport", "ProductsReport", "CustomersReport", "InventoryReport", "CouponsReport", "AnalyticsReport", "FinancialReport", "Color", "Size", "Permission", "Role", "UserRole", "CurrentUserPermissions", "UserPermissions", "User", "Logo", "HeroSection", "UserSettings", "DynamicMenu", "ClientLogo"],
+  tagTypes: ["Product", "Category", "ShippingAddress", "Order", "OrderAnalytics", "Coupon", "Report", "ReportTemplate", "SalesReport", "OrdersReport", "ProductsReport", "CustomersReport", "InventoryReport", "CouponsReport", "AnalyticsReport", "FinancialReport", "Color", "Size", "Permission", "Role", "UserRole", "CurrentUserPermissions", "UserPermissions", "User", "Logo", "HeroSection", "UserSettings", "DynamicMenu", "ClientLogo", "Client", "ClientStats"],
   endpoints: (builder) => ({}),
 });

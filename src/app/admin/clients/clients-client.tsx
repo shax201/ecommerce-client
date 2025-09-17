@@ -78,7 +78,9 @@ import {
   useGetClientsQuery, 
   useDeleteClientMutation,
   useBulkDeleteClientsMutation,
-  useUpdateClientMutation 
+  useUpdateClientMutation,
+  useUpdateClientStatusMutation,
+  useBulkUpdateClientStatusMutation
 } from "@/lib/features/clients";
 import { ClientData, AddressObject } from "./client.interface";
 import { formatAddress } from "./address-utils";
@@ -140,6 +142,8 @@ export function ClientsClient() {
 
   const [deleteClient, { isLoading: isDeleting }] = useDeleteClientMutation();
   const [bulkDeleteClients, { isLoading: isBulkDeleting }] = useBulkDeleteClientsMutation();
+  const [updateClientStatus, { isLoading: isUpdatingStatus }] = useUpdateClientStatusMutation();
+  const [bulkUpdateClientStatus, { isLoading: isBulkUpdatingStatus }] = useBulkUpdateClientStatusMutation();
 
   // Local state for UI
   const [rowSelection, setRowSelection] = React.useState({});
@@ -219,9 +223,11 @@ export function ClientsClient() {
     if (!clientToDelete) return;
 
     try {
+      console.log("Attempting to delete client:", clientToDelete._id);
       const loadingToast = toast.loading("Deleting client...");
 
       const result = await deleteClient(clientToDelete._id).unwrap();
+      console.log("Delete result:", result);
 
       if (result.success) {
         setIsDeleteDialogOpen(false);
@@ -230,6 +236,8 @@ export function ClientsClient() {
         toast.success("Client deleted successfully", {
           description: `Deleted client "${clientToDelete.firstName} ${clientToDelete.lastName}"`,
         });
+        // Refresh the clients list
+        refetch();
       } else {
         toast.dismiss(loadingToast);
         toast.error("Failed to delete client", {
@@ -248,6 +256,70 @@ export function ClientsClient() {
   const handleDeleteCancel = () => {
     setIsDeleteDialogOpen(false);
     setClientToDelete(null);
+  };
+
+  // Handle status toggle for individual client
+  const handleStatusToggle = async (client: ClientData) => {
+    try {
+      const loadingToast = toast.loading(`${client.status ? 'Deactivating' : 'Activating'} client...`);
+
+      const result = await updateClientStatus({
+        id: client._id,
+        status: !client.status
+      }).unwrap();
+
+      if (result.success) {
+        toast.dismiss(loadingToast);
+        toast.success(`Client ${!client.status ? 'activated' : 'deactivated'} successfully`);
+      } else {
+        toast.dismiss(loadingToast);
+        toast.error("Failed to update client status", {
+          description: result.message || "Please try again later.",
+        });
+      }
+    } catch (error: any) {
+      console.error("Error updating client status:", error);
+      toast.error("Failed to update client status", {
+        description: error?.data?.message || "An unexpected error occurred. Please try again.",
+      });
+    }
+  };
+
+  // Handle bulk status update
+  const handleBulkStatusUpdate = async (status: boolean) => {
+    const selectedRows = table.getFilteredSelectedRowModel().rows;
+    const selectedClientIds = selectedRows.map((row) => row.original._id);
+
+    if (selectedClientIds.length === 0) {
+      toast.error("No clients selected");
+      return;
+    }
+
+    try {
+      const loadingToast = toast.loading(`${status ? 'Activating' : 'Deactivating'} ${selectedClientIds.length} client(s)...`);
+
+      const result = await bulkUpdateClientStatus({
+        ids: selectedClientIds,
+        status
+      }).unwrap();
+
+      if (result.success) {
+        dispatch(clearSelection());
+        setRowSelection({});
+        toast.dismiss(loadingToast);
+        toast.success(`Successfully ${status ? 'activated' : 'deactivated'} ${selectedClientIds.length} client(s)`);
+      } else {
+        toast.dismiss(loadingToast);
+        toast.error(`Failed to ${status ? 'activate' : 'deactivate'} clients`, {
+          description: result.message || "Please try again later.",
+        });
+      }
+    } catch (error: any) {
+      console.error("Error bulk updating client status:", error);
+      toast.error(`Failed to ${status ? 'activate' : 'deactivate'} clients`, {
+        description: error?.data?.message || "An unexpected error occurred. Please try again.",
+      });
+    }
   };
 
   // Handle bulk delete
@@ -388,12 +460,36 @@ export function ClientsClient() {
       accessorKey: "status",
       header: "Status",
       cell: ({ row }) => (
-        <span
-          className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium border ${getStatusStyles(row.original.status)}`}
+        <button
+          onClick={() => handleStatusToggle(row.original)}
+          disabled={isUpdatingStatus}
+          className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium border transition-colors hover:opacity-80 disabled:opacity-50 disabled:cursor-not-allowed ${getStatusStyles(row.original.status)}`}
         >
           <StatusDot status={row.original.status} />
           {row.original.status ? "Active" : "Inactive"}
-        </span>
+          {isUpdatingStatus && (
+            <svg
+              className="animate-spin h-3 w-3"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+              ></circle>
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+              ></path>
+            </svg>
+          )}
+        </button>
       ),
     },
     {
@@ -447,13 +543,7 @@ export function ClientsClient() {
                 Edit
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={() => handleDeleteClick(row.original)}
-                className="text-destructive"
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Delete
-              </DropdownMenuItem>
+    
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -583,15 +673,25 @@ export function ClientsClient() {
               </DropdownMenuContent>
             </DropdownMenu>
             {table.getFilteredSelectedRowModel().rows.length > 0 && (
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={handleBulkDelete}
-                disabled={isBulkDeleting}
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                {isBulkDeleting ? "Deleting..." : `Delete Selected (${table.getFilteredSelectedRowModel().rows.length})`}
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleBulkStatusUpdate(true)}
+                  disabled={isBulkUpdatingStatus}
+                >
+                  {isBulkUpdatingStatus ? "Activating..." : `Activate Selected (${table.getFilteredSelectedRowModel().rows.length})`}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleBulkStatusUpdate(false)}
+                  disabled={isBulkUpdatingStatus}
+                >
+                  {isBulkUpdatingStatus ? "Deactivating..." : `Deactivate Selected (${table.getFilteredSelectedRowModel().rows.length})`}
+                </Button>
+  
+              </div>
             )}
           </div>
 

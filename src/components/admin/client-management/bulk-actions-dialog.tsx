@@ -21,11 +21,10 @@ import {
 } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { 
-  useBulkUpdateClientStatusMutation, 
-  useBulkDeleteClientsMutation 
+  useBulkUpdateClientStatusMutation
 } from "@/lib/features/clients";
 import { toast } from "sonner";
-import { Loader2, AlertTriangle, Trash2, UserCheck, UserX } from "lucide-react";
+import { Loader2, AlertTriangle, UserCheck, UserX } from "lucide-react";
 
 interface BulkActionsDialogProps {
   open: boolean;
@@ -42,7 +41,6 @@ export function BulkActionsDialog({
 }: BulkActionsDialogProps) {
   const dispatch = useDispatch<AppDispatch>();
   const [bulkUpdateStatus, { isLoading: isUpdatingStatus }] = useBulkUpdateClientStatusMutation();
-  const [bulkDelete, { isLoading: isDeleting }] = useBulkDeleteClientsMutation();
 
   const [action, setAction] = useState<string>("");
   const [status, setStatus] = useState<string>("");
@@ -93,10 +91,6 @@ export function BulkActionsDialog({
           }).unwrap();
           break;
         
-        case "delete":
-          result = await bulkDelete(selectedClients).unwrap();
-          break;
-        
         default:
           throw new Error("Invalid action");
       }
@@ -132,15 +126,13 @@ export function BulkActionsDialog({
         return `This will deactivate ${selectedClients.length} client${selectedClients.length !== 1 ? 's' : ''}.`;
       case "changeStatus":
         return `This will change the status of ${selectedClients.length} client${selectedClients.length !== 1 ? 's' : ''} to ${status}.`;
-      case "delete":
-        return `This will permanently delete ${selectedClients.length} client${selectedClients.length !== 1 ? 's' : ''}. This action cannot be undone.`;
       default:
         return "";
     }
   };
 
-  const isDestructiveAction = action === "delete";
-  const isProcessing = isLoading || isUpdatingStatus || isDeleting;
+  const isDestructiveAction = false;
+  const isProcessing = isLoading || isUpdatingStatus;
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -177,12 +169,6 @@ export function BulkActionsDialog({
                   <div className="flex items-center gap-2">
                     <UserCheck className="h-4 w-4" />
                     Change Status
-                  </div>
-                </SelectItem>
-                <SelectItem value="delete">
-                  <div className="flex items-center gap-2">
-                    <Trash2 className="h-4 w-4" />
-                    Delete Clients
                   </div>
                 </SelectItem>
               </SelectContent>
@@ -231,7 +217,7 @@ export function BulkActionsDialog({
             variant={isDestructiveAction ? "destructive" : "default"}
           >
             {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {isDestructiveAction ? "Delete Clients" : "Execute Action"}
+            Execute Action
           </Button>
         </DialogFooter>
       </DialogContent>

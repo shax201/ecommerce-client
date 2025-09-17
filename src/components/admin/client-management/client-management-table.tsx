@@ -32,7 +32,6 @@ import {
   ChevronRight,
   MoreHorizontal,
   Edit,
-  Trash2,
   Eye,
   UserCheck,
   UserX,
@@ -42,7 +41,10 @@ import { Client } from "@/lib/services/client-management-service";
 import { format } from "date-fns";
 import { formatAddressForTable } from "@/lib/utils/address-utils";
 import { EditClientDialog } from "./edit-client-dialog";
+import { ViewClientDialog } from "./view-client-dialog";
 import { ClientData } from "@/app/admin/clients/client.interface";
+import { useUpdateClientStatusMutation } from "@/lib/features/clients";
+import { toast } from "sonner";
 
 interface ClientManagementTableProps {
   clients: Client[];
@@ -64,6 +66,7 @@ interface ClientManagementTableProps {
   onPageChange: (page: number) => void;
   onLimitChange: (limit: number) => void;
   onBulkActions: () => void;
+  onStatusChange?: () => void;
 }
 
 export function ClientManagementTable({
@@ -81,9 +84,13 @@ export function ClientManagementTable({
   onPageChange,
   onLimitChange,
   onBulkActions,
+  onStatusChange,
 }: ClientManagementTableProps) {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<ClientData | null>(null);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [viewingClient, setViewingClient] = useState<Client | null>(null);
+  const [updateClientStatus, { isLoading: isUpdatingStatus }] = useUpdateClientStatusMutation();
 
   const isAllSelected = clients.length > 0 && selectedClients.length === clients.length;
   const isIndeterminate = selectedClients.length > 0 && selectedClients.length < clients.length;
@@ -120,6 +127,47 @@ export function ClientManagementTable({
   const handleCloseEditDialog = () => {
     setIsEditDialogOpen(false);
     setEditingClient(null);
+  };
+
+  const handleViewClient = (client: Client) => {
+    setViewingClient(client);
+    setIsViewDialogOpen(true);
+  };
+
+  const handleCloseViewDialog = () => {
+    setIsViewDialogOpen(false);
+    setViewingClient(null);
+  };
+
+  const handleStatusChange = async (clientId: string, newStatus: boolean) => {
+    try {
+      const result = await updateClientStatus({
+        id: clientId,
+        status: newStatus
+      }).unwrap();
+
+      if (result.success) {
+        toast.success(
+          `Client ${newStatus ? 'activated' : 'deactivated'} successfully`,
+          {
+            description: `Client status has been updated to ${newStatus ? 'active' : 'inactive'}.`,
+          }
+        );
+        // Call the success callback to refresh data
+        if (onStatusChange) {
+          onStatusChange();
+        }
+      } else {
+        toast.error("Failed to update client status", {
+          description: result.message || "Please try again later.",
+        });
+      }
+    } catch (error: any) {
+      console.error("Error updating client status:", error);
+      toast.error("Error updating client status", {
+        description: error?.data?.message || "An unexpected error occurred. Please try again.",
+      });
+    }
   };
 
   if (error) {
@@ -299,7 +347,7 @@ export function ClientManagementTable({
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleViewClient(client)}>
                           <Eye className="mr-2 h-4 w-4" />
                           View Details
                         </DropdownMenuItem>
@@ -308,18 +356,19 @@ export function ClientManagementTable({
                           Edit Client
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem>
+                        <DropdownMenuItem 
+                          onClick={() => handleStatusChange(client._id!, true)}
+                          disabled={isUpdatingStatus || client.status === true}
+                        >
                           <UserCheck className="mr-2 h-4 w-4" />
                           Activate
                         </DropdownMenuItem>
-                        <DropdownMenuItem>
+                        <DropdownMenuItem 
+                          onClick={() => handleStatusChange(client._id!, false)}
+                          disabled={isUpdatingStatus || client.status === false}
+                        >
                           <UserX className="mr-2 h-4 w-4" />
                           Deactivate
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem className="text-red-600">
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Delete
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -398,6 +447,13 @@ export function ClientManagementTable({
         open={isEditDialogOpen}
         onOpenChange={handleCloseEditDialog}
         client={editingClient}
+      />
+
+      {/* View Client Dialog */}
+      <ViewClientDialog
+        open={isViewDialogOpen}
+        onOpenChange={handleCloseViewDialog}
+        client={viewingClient}
       />
     </div>
   );

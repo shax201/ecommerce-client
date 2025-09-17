@@ -12,6 +12,8 @@ interface ClientManagementStatsProps {
 }
 
 export function ClientManagementStats({ stats, loading }: ClientManagementStatsProps) {
+  console.log('ClientManagementStats received:', { stats, loading });
+  
   if (loading) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -48,8 +50,15 @@ export function ClientManagementStats({ stats, loading }: ClientManagementStatsP
     );
   }
 
-  const activePercentage = stats.totalClients > 0 
-    ? Math.round((stats.activeClients / stats.totalClients) * 100) 
+  // Safely access stats properties with fallbacks
+  const totalClients = stats?.totalClients ?? 0;
+  const activeClients = stats?.activeClients ?? 0;
+  const inactiveClients = stats?.inactiveClients ?? 0;
+  const newClientsThisMonth = stats?.newClientsThisMonth ?? 0;
+  const newClientsThisWeek = stats?.newClientsThisWeek ?? 0;
+
+  const activePercentage = totalClients > 0 
+    ? Math.round((activeClients / totalClients) * 100) 
     : 0;
 
   return (
@@ -61,7 +70,7 @@ export function ClientManagementStats({ stats, loading }: ClientManagementStatsP
           <Users className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{stats.totalClients.toLocaleString()}</div>
+          <div className="text-2xl font-bold">{totalClients.toLocaleString()}</div>
           <p className="text-xs text-muted-foreground">
             All registered clients
           </p>
@@ -76,7 +85,7 @@ export function ClientManagementStats({ stats, loading }: ClientManagementStatsP
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold text-green-600">
-            {stats.activeClients.toLocaleString()}
+            {activeClients.toLocaleString()}
           </div>
           <p className="text-xs text-muted-foreground">
             {activePercentage}% of total clients
@@ -92,7 +101,7 @@ export function ClientManagementStats({ stats, loading }: ClientManagementStatsP
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold text-red-600">
-            {stats.inactiveClients.toLocaleString()}
+            {inactiveClients.toLocaleString()}
           </div>
           <p className="text-xs text-muted-foreground">
             {100 - activePercentage}% of total clients
@@ -108,7 +117,7 @@ export function ClientManagementStats({ stats, loading }: ClientManagementStatsP
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold text-blue-600">
-            {stats.newClientsThisMonth.toLocaleString()}
+            {newClientsThisMonth.toLocaleString()}
           </div>
           <p className="text-xs text-muted-foreground">
             New registrations

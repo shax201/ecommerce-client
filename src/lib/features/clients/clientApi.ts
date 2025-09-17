@@ -1,4 +1,3 @@
-import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 import { 
   Client, 
   ClientQuery, 
@@ -11,25 +10,9 @@ import {
   ClientLoginResponse,
   ClientResponse 
 } from '@/lib/services/client-management-service';
+import { apiSlice } from '../api/apiSlice';
 
-// Base query with authentication
-const baseQuery = fetchBaseQuery({
-  baseUrl: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1',
-  prepareHeaders: (headers, { getState }) => {
-    // Get token from localStorage or Redux state
-    const token = typeof window !== 'undefined' ? localStorage.getItem('admin-token') : null;
-    if (token) {
-      headers.set('authorization', `Bearer ${token}`);
-    }
-    headers.set('Content-Type', 'application/json');
-    return headers;
-  },
-});
-
-export const clientApi = createApi({
-  reducerPath: 'clientApi',
-  baseQuery,
-  tagTypes: ['Client', 'ClientStats'],
+export const clientApi = apiSlice.injectEndpoints({
   endpoints: (builder) => ({
     // Get all clients with pagination and filtering
     getClients: builder.query<ClientResponse, ClientQuery>({
@@ -60,6 +43,9 @@ export const clientApi = createApi({
     getClientStats: builder.query<ClientStats, void>({
       query: () => '/clients/stats',
       providesTags: ['ClientStats'],
+      transformResponse: (response: { success: boolean; data: ClientStats; message: string }) => {
+        return response.data;
+      },
     }),
 
     // Create new client
@@ -78,6 +64,20 @@ export const clientApi = createApi({
         url: `/clients/${id}`,
         method: 'PUT',
         body: data,
+      }),
+      invalidatesTags: (result, error, { id }) => [
+        { type: 'Client', id },
+        'Client',
+        'ClientStats'
+      ],
+    }),
+
+    // Update client status
+    updateClientStatus: builder.mutation<ClientResponse, { id: string; status: boolean }>({
+      query: ({ id, status }) => ({
+        url: `/clients/${id}`,
+        method: 'PUT',
+        body: { status: status ? 'active' : 'inactive' }, // Convert boolean to string
       }),
       invalidatesTags: (result, error, { id }) => [
         { type: 'Client', id },
@@ -113,10 +113,13 @@ export const clientApi = createApi({
 
     // Delete client
     deleteClient: builder.mutation<ClientResponse, string>({
-      query: (id) => ({
-        url: `/clients/${id}`,
-        method: 'DELETE',
-      }),
+      query: (id) => {
+        console.log('Delete client API call for ID:', id);
+        return {
+          url: `/clients/${id}`,
+          method: 'DELETE',
+        };
+      },
       invalidatesTags: ['Client', 'ClientStats'],
     }),
 
@@ -134,7 +137,7 @@ export const clientApi = createApi({
       query: ({ ids, status }) => ({
         url: '/clients/bulk/status',
         method: 'PUT',
-        body: { ids, status },
+        body: { ids, status }, // Keep boolean for bulk operations as backend expects it
       }),
       invalidatesTags: ['Client', 'ClientStats'],
     }),
@@ -157,6 +160,7 @@ export const {
   useGetClientStatsQuery,
   useCreateClientMutation,
   useUpdateClientMutation,
+  useUpdateClientStatusMutation,
   useUpdateClientProfileMutation,
   useChangeClientPasswordMutation,
   useDeleteClientMutation,

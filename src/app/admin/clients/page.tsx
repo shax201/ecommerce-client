@@ -63,7 +63,16 @@ export default function ClientsPage() {
   // Update Redux state when API data changes
   useEffect(() => {
     if (clientsData?.success && clientsData.data) {
-      dispatch(setClients(Array.isArray(clientsData.data) ? clientsData.data : []));
+      // Ensure data is an array
+      const clientsArray = Array.isArray(clientsData.data) ? clientsData.data : [];
+      
+      // Convert string status to boolean if needed (temporary fix)
+      const processedClients = clientsArray.map((client: any) => ({
+        ...client,
+        status: typeof client.status === 'string' ? client.status === 'active' : client.status
+      }));
+      
+      dispatch(setClients(processedClients));
       if (clientsData.pagination) {
         dispatch(setPagination(clientsData.pagination));
       }
@@ -77,14 +86,21 @@ export default function ClientsPage() {
   }, [statsData, dispatch]);
 
   useEffect(() => {
-    dispatch(setLoading(clientsLoading));
-  }, [clientsLoading, dispatch]);
+    dispatch(setLoading(clientsLoading || statsLoading));
+  }, [clientsLoading, statsLoading, dispatch]);
 
   useEffect(() => {
     if (clientsError) {
       dispatch(setError('Failed to fetch clients'));
     }
   }, [clientsError, dispatch]);
+
+  useEffect(() => {
+    if (statsError) {
+      console.error('Stats error:', statsError);
+      dispatch(setError('Failed to fetch client statistics'));
+    }
+  }, [statsError, dispatch]);
 
   // Handle search
   const handleSearch = (search: string) => {
@@ -183,22 +199,7 @@ export default function ClientsPage() {
                   <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
                   Refresh
                 </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleImport}
-                >
-                  <Upload className="h-4 w-4" />
-                  Import
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleExport}
-                >
-                  <Download className="h-4 w-4" />
-                  Export
-                </Button>
+           
                 <Button
                   onClick={() => setIsCreateDialogOpen(true)}
                   disabled={loading}
@@ -246,6 +247,7 @@ export default function ClientsPage() {
               onPageChange={handlePageChange}
               onLimitChange={handleLimitChange}
               onBulkActions={() => setIsBulkActionsOpen(true)}
+              onStatusChange={refetchClients}
             />
           </div>
         </div>

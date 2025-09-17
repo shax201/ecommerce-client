@@ -44,8 +44,7 @@ const rootReducer = combineReducers({
   dynamicMenus: dynamicMenusReducer,
   clientLogos: clientLogosReducer,
   clients: clientReducer,
-  [apiSlice.reducerPath]: apiSlice.reducer,
-  [clientApi.reducerPath]: clientApi.reducer,
+  [apiSlice.reducerPath]: apiSlice.reducer
 });
 const persistedReducer = persistReducer(persistConfig, rootReducer);
 
@@ -56,7 +55,7 @@ export const makeStore = () => {
     middleware: (getDefaultMiddleware) =>
       getDefaultMiddleware({
         serializableCheck: false,
-      }).concat(apiSlice.middleware, clientApi.middleware),
+      }).concat(apiSlice.middleware),
   });
 
   const persistor = persistStore(store);

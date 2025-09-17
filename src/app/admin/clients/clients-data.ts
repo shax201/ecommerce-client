@@ -51,28 +51,6 @@ export async function fetchClientById(clientId: string): Promise<ClientData | nu
   }
 }
 
-export async function deleteClient(clientId: string): Promise<boolean> {
-  try {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/clients/${clientId}`, {
-      method: "DELETE",
-      headers: {
-        "Content-Type": "application/json",
-      },
-    })
-
-    const data = await response.json()
-
-    if (response.ok && data.success) {
-      return true
-    } else {
-      console.error("Failed to delete client:", data.message)
-      return false
-    }
-  } catch (error) {
-    console.error(`Error deleting client ${clientId}:`, error)
-    return false
-  }
-}
 
 export async function updateClient(clientId: string, updateData: any): Promise<{ success: boolean; data?: any; message?: string }> {
   try {

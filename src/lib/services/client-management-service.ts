@@ -28,7 +28,16 @@ export interface ClientStats {
   activeClients: number;
   inactiveClients: number;
   newClientsThisMonth: number;
-  clientsByMonth: Array<{
+  newClientsThisWeek: number;
+  lastLoginStats: {
+    today: number;
+    thisWeek: number;
+    thisMonth: number;
+  };
+  totalUsers: number;
+  adminUsers: number;
+  clientUsers: number;
+  clientsByMonth?: Array<{
     month: string;
     count: number;
   }>;
