@@ -173,7 +173,13 @@ function BasicPaginationExample({ data }: { data: any[] }) {
 
       {/* Pagination */}
       <ProductPagination
-        pagination={pagination}
+        pagination={{
+          currentPage: pagination.currentPage,
+          totalPages: pagination.totalPages,
+          totalProducts: pagination.totalItems,
+          hasNextPage: pagination.hasNextPage,
+          hasPrevPage: pagination.hasPrevPage,
+        }}
         onPageChange={pagination.goToPage}
         itemsPerPage={itemsPerPage}
         showInfo={false}
@@ -223,7 +229,13 @@ function UrlPaginationExample({ data }: { data: any[] }) {
 
       {/* Pagination */}
       <ProductPagination
-        pagination={pagination}
+        pagination={{
+          currentPage: pagination.currentPage,
+          totalPages: pagination.totalPages,
+          totalProducts: pagination.totalItems,
+          hasNextPage: pagination.hasNextPage,
+          hasPrevPage: pagination.hasPrevPage,
+        }}
         onPageChange={pagination.goToPage}
         itemsPerPage={itemsPerPage}
         showInfo={true}
@@ -347,7 +359,13 @@ function CompactPaginationExample({ data }: { data: any[] }) {
 
       {/* Compact Pagination */}
       <CompactPagination
-        pagination={pagination}
+        pagination={{
+          currentPage: pagination.currentPage,
+          totalPages: pagination.totalPages,
+          totalProducts: pagination.totalItems,
+          hasNextPage: pagination.hasNextPage,
+          hasPrevPage: pagination.hasPrevPage,
+        }}
         onPageChange={pagination.goToPage}
         isLoading={false}
       />

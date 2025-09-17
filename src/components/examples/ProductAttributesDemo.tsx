@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState } from "react";
-import { useGetColorsQuery, useGetSizesQuery } from "@/lib/features/attributes/colorsApi";
-import { useGetSizesQuery as useGetSizesQueryHook } from "@/lib/features/attributes/sizesApi";
+import { useGetColorsQuery } from "@/lib/features/attributes/colorsApi";
+import { useGetSizesQuery } from "@/lib/features/attributes/sizesApi";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -18,7 +18,7 @@ export default function ProductAttributesDemo() {
 
   // Fetch colors and sizes
   const { data: colorsData, isLoading: isLoadingColors } = useGetColorsQuery();
-  const { data: sizesData, isLoading: isLoadingSizes } = useGetSizesQueryHook();
+  const { data: sizesData, isLoading: isLoadingSizes } = useGetSizesQuery();
 
   const colors = colorsData?.data || [];
   const sizes = sizesData?.data || [];

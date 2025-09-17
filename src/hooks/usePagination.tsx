@@ -119,9 +119,6 @@ export function usePagination({
     goToLastPage,
     setItemsPerPage,
     reset,
-    
-    // Utilities
-    getVisiblePages,
   };
 }
 
