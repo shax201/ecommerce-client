@@ -85,7 +85,7 @@ export default function CartPage() {
                     </span>
                   </div>
                 </div>
-                <div className="flex space-x-3">
+                {/* <div className="flex space-x-3">
                   <InputGroup className="bg-[#F0F0F0]">
                     <InputGroup.Text>
                       <MdOutlineLocalOffer className="text-black/40 text-2xl" />
@@ -103,7 +103,7 @@ export default function CartPage() {
                   >
                     Apply
                   </Button>
-                </div>
+                </div> */}
                 <Button
                   type="button"
                   className="text-sm md:text-base font-medium bg-black rounded-full w-full py-4 h-[54px] md:h-[60px] group"
