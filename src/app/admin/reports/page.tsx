@@ -57,7 +57,7 @@ export default function ReportsOverviewPage() {
     {
       id: "sales",
       name: "Sales Reports",
-      href: "/reports/sales",
+      href: "/admin/reports/sales",
       icon: TrendingUp,
       description: "Revenue, orders, and sales performance metrics",
       color: "text-green-600",
@@ -66,7 +66,7 @@ export default function ReportsOverviewPage() {
     {
       id: "orders",
       name: "Orders Reports",
-      href: "/reports/orders",
+      href: "/admin/reports/orders",
       icon: ShoppingCart,
       description: "Order status, fulfillment, and customer insights",
       color: "text-blue-600",
@@ -75,7 +75,7 @@ export default function ReportsOverviewPage() {
     {
       id: "products",
       name: "Products Reports",
-      href: "/reports/products",
+      href: "/admin/reports/products",
       icon: Package,
       description: "Product performance, inventory, and sales data",
       color: "text-purple-600",
@@ -84,7 +84,7 @@ export default function ReportsOverviewPage() {
     {
       id: "customers",
       name: "Customers Reports",
-      href: "/reports/customers",
+      href: "/admin/reports/customers",
       icon: Users,
       description: "Customer behavior, segments, and lifetime value",
       color: "text-orange-600",
@@ -93,7 +93,7 @@ export default function ReportsOverviewPage() {
     {
       id: "inventory",
       name: "Inventory Reports",
-      href: "/reports/inventory",
+      href: "/admin/reports/inventory",
       icon: Archive,
       description: "Stock levels, movements, and low stock alerts",
       color: "text-red-600",
@@ -102,7 +102,7 @@ export default function ReportsOverviewPage() {
     {
       id: "coupons",
       name: "Coupons Reports",
-      href: "/reports/coupons",
+      href: "/admin/reports/coupons",
       icon: Tag,
       description: "Coupon usage, performance, and discount analytics",
       color: "text-pink-600",
@@ -111,7 +111,7 @@ export default function ReportsOverviewPage() {
     {
       id: "analytics",
       name: "Analytics Reports",
-      href: "/reports/analytics",
+      href: "/admin/reports/analytics",
       icon: BarChart3,
       description: "Website traffic, conversion rates, and user behavior",
       color: "text-indigo-600",
@@ -120,7 +120,7 @@ export default function ReportsOverviewPage() {
     {
       id: "financial",
       name: "Financial Reports",
-      href: "/reports/financial",
+      href: "/admin/reports/financial",
       icon: DollarSign,
       description: "Revenue, costs, profit margins, and financial metrics",
       color: "text-emerald-600",
@@ -152,7 +152,7 @@ export default function ReportsOverviewPage() {
                     Refresh
                   </Button>
                   <Button asChild>
-                    <Link href="/reports/sales">
+                    <Link href="/admin/reports/sales">
                       <Plus className="h-4 w-4 mr-2" />
                       Generate Report
                     </Link>
@@ -311,7 +311,7 @@ export default function ReportsOverviewPage() {
                       Generate your first report to get started
                     </p>
                     <Button asChild>
-                      <Link href="/reports/sales">
+                      <Link href="/admin/reports/sales">
                         <Plus className="h-4 w-4 mr-2" />
                         Generate Report
                       </Link>

@@ -107,7 +107,7 @@ export function SizesClient({ initialSizes }: SizesClientProps) {
       description: `Editing size "${size.size}"`
     })
     // Implement edit functionality - navigate to edit page
-    router.push(`/attributes/sizes/edit/${size._id}`)
+    router.push(`/admin/attributes/sizes/edit/${size._id}`)
   }
 
   // Handle delete button click
@@ -343,7 +343,7 @@ export function SizesClient({ initialSizes }: SizesClientProps) {
             <h2 className="text-3xl font-bold tracking-tight">Sizes</h2>
             <p className="text-muted-foreground">Manage product size attributes</p>
           </div>
-          <Button onClick={() => router.push("/attributes/sizes/add")}>
+          <Button onClick={() => router.push("/admin/attributes/sizes/add")}>
             <PlusIcon className="mr-2 h-4 w-4" />
             Add Size
           </Button>

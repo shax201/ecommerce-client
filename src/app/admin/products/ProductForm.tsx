@@ -405,7 +405,7 @@ export default function ProductForm({ mode, initialValues, mockProduct }: Produc
                         <div className="text-sm text-muted-foreground text-center py-4">Loading colors...</div>
                       ) : colors.length === 0 ? (
                         <div className="text-sm text-muted-foreground text-center py-4">
-                          No colors available. <a href="/attributes/colors" className="text-primary hover:underline">Add colors</a>
+                          No colors available. <a href="/admin/attributes/colors" className="text-primary hover:underline">Add colors</a>
                         </div>
                       ) : (
                         <div className="max-h-64 overflow-y-auto space-y-2">
@@ -487,7 +487,7 @@ export default function ProductForm({ mode, initialValues, mockProduct }: Produc
                         <div className="text-sm text-muted-foreground text-center py-4">Loading sizes...</div>
                       ) : sizes.length === 0 ? (
                         <div className="text-sm text-muted-foreground text-center py-4">
-                          No sizes available. <a href="/attributes/sizes" className="text-primary hover:underline">Add sizes</a>
+                          No sizes available. <a href="/admin/attributes/sizes" className="text-primary hover:underline">Add sizes</a>
                         </div>
                       ) : (
                         <div className="max-h-64 overflow-y-auto space-y-2">

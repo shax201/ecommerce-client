@@ -15,7 +15,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Save, Eye, Trash2, Plus, Loader2, RefreshCw, GripVertical, AlertCircle, Edit, Copy, MoreVertical, Check, X, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
-import { ClientLogoService, type ClientLogoFormData, type ContentResponse } from "@/lib/services/content-service";
+import { useClientLogosRedux } from "@/hooks/use-client-logos-redux";
+import { type ClientLogoFormData } from "@/actions/content";
+import { type ClientLogoData } from "@/lib/features/client-logos";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -23,95 +25,65 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import Image from "next/image";
 import { Skeleton } from "@/components/ui/skeleton";
 
-// Types matching backend API
-interface ClientLogoData {
-  _id: string;
-  name: string;
-  description?: string;
-  logoUrl: string;
-  websiteUrl?: string;
-  altText: string;
-  isActive: boolean;
-  order: number;
-  createdAt?: string;
-  updatedAt?: string;
-}
+// Types are now imported from Redux slice
 
 export function ClientLogosManagement() {
-  const [clientLogos, setClientLogos] = useState<ClientLogoData[]>([]);
+  // Use the custom Redux hook for better data management
+  const {
+    logos: clientLogos,
+    selectedLogos: selectedItems,
+    loading: isLoading,
+    error,
+    editingField,
+    editingValue,
+    loadLogos,
+    createLogo,
+    updateLogo,
+    deleteLogo,
+    reorderLogos,
+    bulkActivate,
+    bulkDeactivate,
+    bulkDelete,
+    selectLogo,
+    deselectLogo,
+    selectAllLogos,
+    clearSelection,
+    toggleLogoSelection,
+    startInlineEdit,
+    updateEditingValue,
+    cancelInlineEdit,
+    saveInlineEdit,
+    refresh,
+  } = useClientLogosRedux();
+
   const [editingLogo, setEditingLogo] = useState<ClientLogoData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [draggedItem, setDraggedItem] = useState<string | null>(null);
-  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
-  const [editingField, setEditingField] = useState<{ id: string; field: string } | null>(null);
-  const [editingValue, setEditingValue] = useState<string>("");
   const [isBulkOperating, setIsBulkOperating] = useState(false);
 
   // Load client logos on component mount
   useEffect(() => {
-    loadClientLogos();
-  }, []);
-
-  const loadClientLogos = async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      const response: ContentResponse = await ClientLogoService.getAll();
-      
-      if (response.success && response.data) {
-        setClientLogos(response.data);
-        toast.success("Client logos loaded successfully");
-      } else {
-        setError(response.message || "Failed to load client logos");
-        toast.error(response.message || "Failed to load client logos");
-      }
-    } catch (error) {
-      console.error("Error loading client logos:", error);
-      const errorMessage = error instanceof Error ? error.message : "Failed to load client logos";
-      setError(errorMessage);
-      toast.error(errorMessage);
-    } finally {
-      setIsLoading(false);
+    if (clientLogos.length === 0) {
+      loadLogos();
     }
-  };
+  }, [clientLogos.length, loadLogos]);
 
   const handleSave = async (logoData: ClientLogoFormData): Promise<void> => {
     try {
       setIsSaving(true);
-      setError(null);
       
       if (editingLogo) {
         // Update existing client logo
-        const response: ContentResponse = await ClientLogoService.update(editingLogo._id, logoData);
-        
-        if (response.success && response.data) {
-        setClientLogos((prev) =>
-            prev.map((logo) => (logo._id === editingLogo._id ? response.data : logo))
-        );
+        await updateLogo(editingLogo._id, logoData);
         setEditingLogo(null);
-        toast.success("Client logo updated successfully");
-        } else {
-          throw new Error(response.message || "Failed to update client logo");
-        }
       } else {
         // Create new client logo
-        const response: ContentResponse = await ClientLogoService.create(logoData);
-        
-        if (response.success && response.data) {
-          setClientLogos((prev) => [...prev, response.data]);
-        toast.success("Client logo added successfully");
-        } else {
-          throw new Error(response.message || "Failed to create client logo");
-        }
+        await createLogo(logoData);
       }
     } catch (error) {
+      // Error handling is done in the Redux hook
       console.error("Error saving client logo:", error);
-      const errorMessage = error instanceof Error ? error.message : "Failed to save client logo";
-      setError(errorMessage);
-      toast.error(errorMessage);
       throw error; // Re-throw to let the form handle it
     } finally {
       setIsSaving(false);
@@ -128,21 +100,10 @@ export function ClientLogosManagement() {
 
     try {
       setIsDeleting(id);
-      setError(null);
-      
-      const response: ContentResponse = await ClientLogoService.delete(id);
-      
-      if (response.success) {
-        setClientLogos((prev) => prev.filter((logo) => logo._id !== id));
-      toast.success("Client logo deleted successfully");
-      } else {
-        throw new Error(response.message || "Failed to delete client logo");
-      }
+      await deleteLogo(id);
     } catch (error) {
+      // Error handling is done in the Redux hook
       console.error("Error deleting client logo:", error);
-      const errorMessage = error instanceof Error ? error.message : "Failed to delete client logo";
-      setError(errorMessage);
-      toast.error(errorMessage);
     } finally {
       setIsDeleting(null);
     }
@@ -153,50 +114,21 @@ export function ClientLogosManagement() {
     if (!logo) return;
 
     try {
-      setError(null);
-      const response: ContentResponse = await ClientLogoService.update(id, {
+      await updateLogo(id, {
         isActive: !logo.isActive,
       });
-      
-      if (response.success && response.data) {
-        setClientLogos((prev) => prev.map((l) => (l._id === id ? response.data : l)));
-      toast.success("Client logo status updated");
-      } else {
-        throw new Error(response.message || "Failed to update client logo status");
-      }
     } catch (error) {
+      // Error handling is done in the Redux hook
       console.error("Error toggling client logo status:", error);
-      const errorMessage = error instanceof Error ? error.message : "Failed to update client logo status";
-      setError(errorMessage);
-      toast.error(errorMessage);
     }
   };
 
   const handleReorder = async (updates: { id: string; order: number }[]) => {
     try {
-      setError(null);
-      const response: ContentResponse = await ClientLogoService.reorder({ updates });
-      
-      if (response.success) {
-        // Update local state with new order
-        const updatedLogos = [...clientLogos];
-        updates.forEach(({ id, order }) => {
-          const logo = updatedLogos.find(l => l._id === id);
-          if (logo) {
-            logo.order = order;
-          }
-        });
-        updatedLogos.sort((a, b) => a.order - b.order);
-        setClientLogos(updatedLogos);
-        toast.success("Client logos reordered successfully");
-      } else {
-        throw new Error(response.message || "Failed to reorder client logos");
-      }
+      await reorderLogos({ updates });
     } catch (error) {
+      // Error handling is done in the Redux hook
       console.error("Error reordering client logos:", error);
-      const errorMessage = error instanceof Error ? error.message : "Failed to reorder client logos";
-      setError(errorMessage);
-      toast.error(errorMessage);
     }
   };
 
@@ -239,10 +171,7 @@ export function ClientLogosManagement() {
     }));
 
     // Update local state immediately for better UX
-    setClientLogos(newLogos.map((logo, index) => ({
-      ...logo,
-      order: index + 1
-    })));
+    // This is now handled by Redux in the reorderLogos action
 
     // Send to backend
     handleReorder(updates);
@@ -252,20 +181,14 @@ export function ClientLogosManagement() {
   // Bulk operations
   const handleSelectAll = () => {
     if (selectedItems.size === clientLogos.length) {
-      setSelectedItems(new Set());
+      clearSelection();
     } else {
-      setSelectedItems(new Set(clientLogos.map(logo => logo._id)));
+      selectAllLogos();
     }
   };
 
   const handleSelectItem = (id: string) => {
-    const newSelected = new Set(selectedItems);
-    if (newSelected.has(id)) {
-      newSelected.delete(id);
-    } else {
-      newSelected.add(id);
-    }
-    setSelectedItems(newSelected);
+    toggleLogoSelection(id);
   };
 
   const handleBulkDelete = async () => {
@@ -277,28 +200,10 @@ export function ClientLogosManagement() {
 
     try {
       setIsBulkOperating(true);
-      setError(null);
-
-      const deletePromises = Array.from(selectedItems).map(id => 
-        ClientLogoService.delete(id)
-      );
-
-      const results = await Promise.allSettled(deletePromises);
-      const failed = results.filter(result => result.status === 'rejected').length;
-      const succeeded = results.length - failed;
-
-      if (succeeded > 0) {
-        setClientLogos(prev => prev.filter(logo => !selectedItems.has(logo._id)));
-        setSelectedItems(new Set());
-        toast.success(`Successfully deleted ${succeeded} client logo(s)`);
-      }
-
-      if (failed > 0) {
-        toast.error(`Failed to delete ${failed} client logo(s)`);
-      }
+      await bulkDelete(Array.from(selectedItems));
     } catch (error) {
+      // Error handling is done in the Redux hook
       console.error("Error in bulk delete:", error);
-      toast.error("Failed to delete client logos");
     } finally {
       setIsBulkOperating(false);
     }
@@ -309,32 +214,14 @@ export function ClientLogosManagement() {
 
     try {
       setIsBulkOperating(true);
-      setError(null);
-
-      const updatePromises = Array.from(selectedItems).map(id => 
-        ClientLogoService.update(id, { isActive })
-      );
-
-      const results = await Promise.allSettled(updatePromises);
-      const failed = results.filter(result => result.status === 'rejected').length;
-      const succeeded = results.length - failed;
-
-      if (succeeded > 0) {
-        setClientLogos(prev => 
-          prev.map(logo => 
-            selectedItems.has(logo._id) ? { ...logo, isActive } : logo
-          )
-        );
-        setSelectedItems(new Set());
-        toast.success(`Successfully ${isActive ? 'activated' : 'deactivated'} ${succeeded} client logo(s)`);
-      }
-
-      if (failed > 0) {
-        toast.error(`Failed to update ${failed} client logo(s)`);
+      if (isActive) {
+        await bulkActivate(Array.from(selectedItems));
+      } else {
+        await bulkDeactivate(Array.from(selectedItems));
       }
     } catch (error) {
+      // Error handling is done in the Redux hook
       console.error("Error in bulk toggle:", error);
-      toast.error("Failed to update client logos");
     } finally {
       setIsBulkOperating(false);
     }
@@ -343,7 +230,6 @@ export function ClientLogosManagement() {
   const handleDuplicate = async (logo: ClientLogoData) => {
     try {
       setIsSaving(true);
-      setError(null);
 
       const duplicateData: ClientLogoFormData = {
         name: `${logo.name} (Copy)`,
@@ -355,74 +241,38 @@ export function ClientLogosManagement() {
         order: clientLogos.length + 1
       };
 
-      const response: ContentResponse = await ClientLogoService.create(duplicateData);
-      
-      if (response.success && response.data) {
-        setClientLogos(prev => [...prev, response.data]);
-        toast.success("Client logo duplicated successfully");
-      } else {
-        throw new Error(response.message || "Failed to duplicate client logo");
-      }
+      await createLogo(duplicateData);
     } catch (error) {
+      // Error handling is done in the Redux hook
       console.error("Error duplicating client logo:", error);
-      const errorMessage = error instanceof Error ? error.message : "Failed to duplicate client logo";
-      setError(errorMessage);
-      toast.error(errorMessage);
     } finally {
       setIsSaving(false);
     }
   };
 
   // Inline editing functions
-  const startInlineEdit = (id: string, field: string, currentValue: string) => {
-    setEditingField({ id, field });
-    setEditingValue(currentValue);
+  const startInlineEditAction = (id: string, field: string, currentValue: string) => {
+    startInlineEdit(id, field, currentValue);
   };
 
-  const cancelInlineEdit = () => {
-    setEditingField(null);
-    setEditingValue("");
+  const cancelInlineEditAction = () => {
+    cancelInlineEdit();
   };
 
-  const saveInlineEdit = async () => {
-    if (!editingField) return;
-
-    try {
-      setError(null);
-      const response: ContentResponse = await ClientLogoService.update(editingField.id, {
-        [editingField.field]: editingValue
-      });
-
-      if (response.success && response.data) {
-        setClientLogos(prev => 
-          prev.map(logo => 
-            logo._id === editingField.id ? response.data : logo
-          )
-        );
-        toast.success("Updated successfully");
-      } else {
-        throw new Error(response.message || "Failed to update");
-      }
-    } catch (error) {
-      console.error("Error updating field:", error);
-      const errorMessage = error instanceof Error ? error.message : "Failed to update";
-      toast.error(errorMessage);
-    } finally {
-      setEditingField(null);
-      setEditingValue("");
-    }
+  const saveInlineEditAction = async () => {
+    await saveInlineEdit();
   };
 
   const handleInlineKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
-      saveInlineEdit();
+      saveInlineEditAction();
     } else if (e.key === 'Escape') {
-      cancelInlineEdit();
+      cancelInlineEditAction();
     }
   };
 
 
-  const activeLogos = clientLogos
+  const activeLogos = [...clientLogos]
     .filter((logo) => logo.isActive)
     .sort((a, b) => a.order - b.order);
 
@@ -449,7 +299,7 @@ export function ClientLogosManagement() {
         <Button
           variant="outline"
           size="sm"
-          onClick={loadClientLogos}
+          onClick={refresh}
           disabled={isLoading}
         >
           <RefreshCw
@@ -524,7 +374,7 @@ export function ClientLogosManagement() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setSelectedItems(new Set())}
+                onClick={clearSelection}
                 disabled={selectedItems.size === 0}
               >
                 Clear Selection
@@ -583,7 +433,7 @@ export function ClientLogosManagement() {
             </div>
           </div>
         ) : (
-          clientLogos
+          [...clientLogos]
             .sort((a, b) => a.order - b.order)
             .map((logo) => (
           <Card 
@@ -618,22 +468,22 @@ export function ClientLogosManagement() {
                         <div className="flex items-center gap-2">
                           <Input
                             value={editingValue}
-                            onChange={(e) => setEditingValue(e.target.value)}
+                            onChange={(e) => updateEditingValue(e.target.value)}
                             onKeyDown={handleInlineKeyPress}
                             className="h-8"
                             autoFocus
                           />
-                          <Button size="sm" onClick={saveInlineEdit}>
+                          <Button size="sm" onClick={saveInlineEditAction}>
                             <Check className="h-3 w-3" />
                           </Button>
-                          <Button size="sm" variant="outline" onClick={cancelInlineEdit}>
+                          <Button size="sm" variant="outline" onClick={cancelInlineEditAction}>
                             <X className="h-3 w-3" />
                           </Button>
                         </div>
                       ) : (
                         <div 
                           className="flex items-center gap-2 cursor-pointer hover:bg-muted p-1 rounded"
-                          onClick={() => startInlineEdit(logo._id, 'name', logo.name)}
+                          onClick={() => startInlineEditAction(logo._id, 'name', logo.name)}
                         >
                     <CardTitle className="text-lg">{logo.name}</CardTitle>
                           <Edit className="h-3 w-3 text-muted-foreground" />
@@ -644,22 +494,22 @@ export function ClientLogosManagement() {
                       <div className="flex items-center gap-2 mt-1">
                         <Input
                           value={editingValue}
-                          onChange={(e) => setEditingValue(e.target.value)}
+                          onChange={(e) => updateEditingValue(e.target.value)}
                           onKeyDown={handleInlineKeyPress}
                           className="h-8"
                           autoFocus
                         />
-                        <Button size="sm" onClick={saveInlineEdit}>
+                        <Button size="sm" onClick={saveInlineEditAction}>
                           <Check className="h-3 w-3" />
                         </Button>
-                        <Button size="sm" variant="outline" onClick={cancelInlineEdit}>
+                        <Button size="sm" variant="outline" onClick={cancelInlineEditAction}>
                           <X className="h-3 w-3" />
                         </Button>
                       </div>
                     ) : (
                       <div 
                         className="cursor-pointer hover:bg-muted p-1 rounded -ml-1"
-                        onClick={() => startInlineEdit(logo._id, 'description', logo.description || '')}
+                        onClick={() => startInlineEditAction(logo._id, 'description', logo.description || '')}
                       >
                         <CardDescription className="flex items-center gap-1">
                           {logo.description || 'Click to add description'}

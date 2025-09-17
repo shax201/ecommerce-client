@@ -133,7 +133,7 @@ export default function EditCouponPage() {
         });
       } else {
         toast.error("Coupon not found");
-        router.push("/coupons");
+        router.push("/admin/coupons");
       }
     }
   }, [couponsData, couponId, router]);
@@ -234,7 +234,7 @@ export default function EditCouponPage() {
         toast.success("Coupon updated successfully!", {
           description: `Coupon "${formData.code}" has been updated`,
         });
-        router.push("/coupons");
+        router.push("/admin/coupons");
       } else {
         toast.dismiss(loadingToast);
         toast.error("Operation failed", {

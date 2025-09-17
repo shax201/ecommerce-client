@@ -190,7 +190,7 @@ export function AddSizeForm() {
       
       // Redirect back to sizes list
       setTimeout(() => {
-        router.push("/attributes/sizes")
+        router.push("/admin/attributes/sizes")
       }, 1500)
     } catch (error: any) {
       console.error("Error creating sizes:", error)

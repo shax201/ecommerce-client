@@ -135,12 +135,12 @@ export function ProductsClient() {
 
   // Handle view product
   const handleViewProduct = (product: ProductData) => {
-    router.push(`/products/view/${product._id}`)
+    router.push(`/admin/products/view/${product._id}`)
   }
 
   // Handle edit product
   const handleEditProduct = (product: ProductData) => {
-    router.push(`/products/edit/${product._id}`)
+    router.push(`/admin/products/edit/${product._id}`)
   }
 
   // Handle delete button click
@@ -416,7 +416,7 @@ export function ProductsClient() {
             <p className="text-muted-foreground">Manage your product inventory</p>
           </div>
           <div className="flex gap-2">
-            <Button variant="default" onClick={() => router.push("/products/add")}>
+            <Button variant="default" onClick={() => router.push("/admin/products/add")}>
               <Plus className="mr-2 h-4 w-4" />
               Add Product
             </Button>

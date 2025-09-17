@@ -46,14 +46,6 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import {
-  getDynamicMenus,
-  createDynamicMenu,
-  updateDynamicMenu,
-  deleteDynamicMenu,
-  createDynamicMenuItem,
-  updateDynamicMenuItem,
-  deleteDynamicMenuItem,
-  reorderDynamicMenuItems,
   type DynamicMenuFormData,
   type DynamicMenuItemFormData,
   type DynamicMenuFilters,
@@ -75,7 +67,7 @@ import {
 } from "@dnd-kit/sortable";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { useDynamicMenuISR } from "@/hooks/use-dynamic-menu-isr";
+import { useDynamicMenuRedux } from "@/hooks/use-dynamic-menu-redux";
 import { handleDynamicMenusUpdate } from "@/actions/revalidate";
 
 // Types
@@ -310,25 +302,29 @@ export function DynamicMenuManagement({
   initialMenus,
   initialPagination,
 }: DynamicMenuManagementProps) {
-  // Use the custom ISR hook for better data management
+  // Use the custom Redux hook for better data management
   const {
-    menus: isrMenus,
+    menus,
+    selectedMenu,
     pagination,
     loading,
     error,
     dataSource,
     performanceMetrics,
-    loadMore,
+    loadMenus,
+    createMenu,
+    updateMenu,
+    deleteMenu,
+    createMenuItem,
+    updateMenuItem,
+    deleteMenuItem,
+    reorderItems,
+    setSelectedMenu,
     refresh,
-  } = useDynamicMenuISR({
+  } = useDynamicMenuRedux({
     initialMenus: initialMenus || [],
     initialPagination,
   });
-
-  const [menus, setMenus] = useState<DynamicMenuData[]>([]);
-  const [selectedMenu, setSelectedMenu] = useState<DynamicMenuData | null>(
-    null
-  );
   const [isCreateMenuOpen, setIsCreateMenuOpen] = useState(false);
   const [isEditMenuOpen, setIsEditMenuOpen] = useState(false);
   const [isCreateItemOpen, setIsCreateItemOpen] = useState(false);
@@ -365,30 +361,12 @@ export function DynamicMenuManagement({
     })
   );
 
-  // Load menus (fallback for when ISR data is not available)
-  const loadMenus = async () => {
-    try {
-      const response = await getDynamicMenus();
-      if (response.success) {
-        setMenus(response.data || []);
-      } else {
-        toast.error(response.message || "Failed to load menus");
-      }
-    } catch (error) {
-      toast.error("Failed to load menus");
-    }
-  };
-
-  // Load menus on component mount and when ISR data changes
+  // Load menus on component mount
   useEffect(() => {
-    if (isrMenus.length > 0) {
-      // Use ISR data if available
-      setMenus(isrMenus);
-    } else {
-      // Fallback to client-side fetching if no ISR data
+    if (menus.length === 0) {
       loadMenus();
     }
-  }, [isrMenus]);
+  }, [menus.length, loadMenus]);
 
 
   // Menu handlers
@@ -399,20 +377,14 @@ export function DynamicMenuManagement({
     }
 
     try {
-      const response = await createDynamicMenu(menuForm);
-      if (response.success) {
-        toast.success("Menu created successfully");
-        setIsCreateMenuOpen(false);
-        setMenuForm({ name: "", description: "", slug: "", isActive: true });
-        loadMenus();
+      await createMenu(menuForm);
+      setIsCreateMenuOpen(false);
+      setMenuForm({ name: "", description: "", slug: "", isActive: true });
 
-        // Trigger ISR cache revalidation
-        await handleDynamicMenusUpdate();
-      } else {
-        toast.error(response.message);
-      }
+      // Trigger ISR cache revalidation
+      await handleDynamicMenusUpdate();
     } catch (error) {
-      toast.error("Failed to create menu");
+      // Error handling is done in the Redux hook
     }
   };
 
@@ -423,18 +395,12 @@ export function DynamicMenuManagement({
     }
 
     try {
-      const response = await updateDynamicMenu(selectedMenu._id!, menuForm);
-      if (response.success) {
-        toast.success("Menu updated successfully");
-        setIsEditMenuOpen(false);
-        setSelectedMenu(null);
-        setMenuForm({ name: "", description: "", slug: "", isActive: true });
-        loadMenus();
-      } else {
-        toast.error(response.message);
-      }
+      await updateMenu(selectedMenu._id!, menuForm);
+      setIsEditMenuOpen(false);
+      setSelectedMenu(null);
+      setMenuForm({ name: "", description: "", slug: "", isActive: true });
     } catch (error) {
-      toast.error("Failed to update menu");
+      // Error handling is done in the Redux hook
     }
   };
 
@@ -442,37 +408,25 @@ export function DynamicMenuManagement({
     if (!confirm("Are you sure you want to delete this menu?")) return;
 
     try {
-      const response = await deleteDynamicMenu(menu._id!);
-      if (response.success) {
-        toast.success("Menu deleted successfully");
-        loadMenus();
+      await deleteMenu(menu._id!);
 
-        // Trigger ISR cache revalidation
-        await handleDynamicMenusUpdate();
-      } else {
-        toast.error(response.message);
-      }
+      // Trigger ISR cache revalidation
+      await handleDynamicMenusUpdate();
     } catch (error) {
-      toast.error("Failed to delete menu");
+      // Error handling is done in the Redux hook
     }
   };
 
   const handleToggleMenuActive = async (menu: DynamicMenuData) => {
     try {
-      const response = await updateDynamicMenu(menu._id!, {
+      await updateMenu(menu._id!, {
         isActive: !menu.isActive,
       });
-      if (response.success) {
-        toast.success(`Menu ${!menu.isActive ? "activated" : "deactivated"}`);
-        loadMenus();
 
-        // Trigger ISR cache revalidation
-        await handleDynamicMenusUpdate();
-      } else {
-        toast.error(response.message);
-      }
+      // Trigger ISR cache revalidation
+      await handleDynamicMenusUpdate();
     } catch (error) {
-      toast.error("Failed to update menu");
+      // Error handling is done in the Redux hook
     }
   };
 
@@ -484,25 +438,19 @@ export function DynamicMenuManagement({
     }
 
     try {
-      const response = await createDynamicMenuItem(selectedMenu._id!, itemForm);
-      if (response.success) {
-        toast.success("Menu item created successfully");
-        setIsCreateItemOpen(false);
-        setItemForm({
-          label: "",
-          url: "",
-          description: "",
-          icon: "",
-          isExternal: false,
-          isActive: true,
-          order: 1,
-        });
-        loadMenus();
-      } else {
-        toast.error(response.message);
-      }
+      await createMenuItem(selectedMenu._id!, itemForm);
+      setIsCreateItemOpen(false);
+      setItemForm({
+        label: "",
+        url: "",
+        description: "",
+        icon: "",
+        isExternal: false,
+        isActive: true,
+        order: 1,
+      });
     } catch (error) {
-      toast.error("Failed to create menu item");
+      // Error handling is done in the Redux hook
     }
   };
 
@@ -513,30 +461,20 @@ export function DynamicMenuManagement({
     }
 
     try {
-      const response = await updateDynamicMenuItem(
-        selectedMenu!._id!,
-        editingItem.id,
-        itemForm
-      );
-      if (response.success) {
-        toast.success("Menu item updated successfully");
-        setIsEditItemOpen(false);
-        setEditingItem(null);
-        setItemForm({
-          label: "",
-          url: "",
-          description: "",
-          icon: "",
-          isExternal: false,
-          isActive: true,
-          order: 1,
-        });
-        loadMenus();
-      } else {
-        toast.error(response.message);
-      }
+      await updateMenuItem(selectedMenu!._id!, editingItem.id, itemForm);
+      setIsEditItemOpen(false);
+      setEditingItem(null);
+      setItemForm({
+        label: "",
+        url: "",
+        description: "",
+        icon: "",
+        isExternal: false,
+        isActive: true,
+        order: 1,
+      });
     } catch (error) {
-      toast.error("Failed to update menu item");
+      // Error handling is done in the Redux hook
     }
   };
 
@@ -544,35 +482,17 @@ export function DynamicMenuManagement({
     if (!confirm("Are you sure you want to delete this menu item?")) return;
 
     try {
-      const response = await deleteDynamicMenuItem(selectedMenu!._id!, item.id);
-      if (response.success) {
-        toast.success("Menu item deleted successfully");
-        loadMenus();
-      } else {
-        toast.error(response.message);
-      }
+      await deleteMenuItem(selectedMenu!._id!, item.id);
     } catch (error) {
-      toast.error("Failed to delete menu item");
+      // Error handling is done in the Redux hook
     }
   };
 
   const handleToggleItemActive = async (item: DynamicMenuItemData) => {
     try {
-      const response = await updateDynamicMenuItem(
-        selectedMenu!._id!,
-        item.id,
-        { isActive: !item.isActive }
-      );
-      if (response.success) {
-        toast.success(
-          `Menu item ${!item.isActive ? "activated" : "deactivated"}`
-        );
-        loadMenus();
-      } else {
-        toast.error(response.message);
-      }
+      await updateMenuItem(selectedMenu!._id!, item.id, { isActive: !item.isActive });
     } catch (error) {
-      toast.error("Failed to update menu item");
+      // Error handling is done in the Redux hook
     }
   };
 
@@ -610,13 +530,8 @@ export function DynamicMenuManagement({
       order: index + 1,
     }));
 
-    setSelectedMenu({
-      ...selectedMenu,
-      items: updatedItems,
-    });
-
     try {
-      const response = await reorderDynamicMenuItems(selectedMenu._id!, [
+      await reorderItems(selectedMenu._id!, [
         {
           updates: updatedItems.map((item) => ({
             id: item.id.toString(),
@@ -624,16 +539,8 @@ export function DynamicMenuManagement({
           })),
         },
       ]);
-
-      if (!response.success) {
-        toast.error("Failed to reorder items");
-        loadMenus(); // Reload to get correct order
-      } else {
-        toast.success("Items reordered successfully");
-      }
     } catch (error) {
-      toast.error("Failed to reorder items");
-      loadMenus();
+      // Error handling is done in the Redux hook
     }
   };
 
@@ -677,7 +584,7 @@ export function DynamicMenuManagement({
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold">Dynamic Menus</h3>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={loadMenus} disabled={loading}>
+            <Button variant="outline" onClick={refresh} disabled={loading}>
               <RefreshCw
                 className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`}
               />

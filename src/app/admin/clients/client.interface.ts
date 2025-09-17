@@ -1,3 +1,7 @@
+import { AddressObject } from '@/lib/utils/address-utils';
+
+export { AddressObject };
+
 export interface ClientData {
   _id: string
   firstName: string
@@ -5,7 +9,7 @@ export interface ClientData {
   email: string
   role: string
   phone: number
-  address: string
+  address: string | AddressObject
   status: boolean
   image?: string
   createdAt: string

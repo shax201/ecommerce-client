@@ -33,6 +33,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
+import { useSelector, useDispatch } from "react-redux";
+import { RootState } from "@/lib/store";
 
 import { Button } from "@/components/ui/button";
 
@@ -71,8 +73,23 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ClientsSkeleton } from "./clients-skeleton";
-import { fetchClients, deleteClient } from "./clients-data";
-import { ClientData } from "./client.interface";
+import { EditClientDialog } from "@/components/admin/client-management/edit-client-dialog";
+import { 
+  useGetClientsQuery, 
+  useDeleteClientMutation,
+  useBulkDeleteClientsMutation,
+  useUpdateClientMutation 
+} from "@/lib/features/clients";
+import { ClientData, AddressObject } from "./client.interface";
+import { formatAddress } from "./address-utils";
+import { 
+  setSearchTerm, 
+  setSorting, 
+  setPage, 
+  setLimit,
+  clearSelection,
+  setSelectedClients 
+} from "@/lib/features/clients/clientSlice";
 
 // Schema for client data
 const clientSchema = z.object({
@@ -82,7 +99,13 @@ const clientSchema = z.object({
   email: z.string(),
   role: z.string(),
   phone: z.number(),
-  address: z.string(),
+  address: z.union([z.string(), z.object({
+    street: z.string().optional(),
+    city: z.string().optional(),
+    state: z.string().optional(),
+    zipCode: z.string().optional(),
+    country: z.string().optional(),
+  })]),
   status: z.boolean(),
   image: z.string().optional(),
   createdAt: z.string(),
@@ -90,44 +113,88 @@ const clientSchema = z.object({
 });
 
 export function ClientsClient() {
-  const [data, setData] = React.useState<ClientData[]>([]);
+  const dispatch = useDispatch();
+  
+  // Redux state
+  const { 
+    searchTerm, 
+    sortBy, 
+    sortOrder, 
+    pagination,
+    selectedClients 
+  } = useSelector((state: RootState) => state.clients);
+
+  // Redux queries and mutations
+  const { 
+    data: clientsResponse, 
+    isLoading, 
+    error, 
+    refetch 
+  } = useGetClientsQuery({
+    page: pagination.page,
+    limit: pagination.limit,
+    search: searchTerm,
+    sortBy,
+    sortOrder,
+  });
+
+  const [deleteClient, { isLoading: isDeleting }] = useDeleteClientMutation();
+  const [bulkDeleteClients, { isLoading: isBulkDeleting }] = useBulkDeleteClientsMutation();
+
+  // Local state for UI
   const [rowSelection, setRowSelection] = React.useState({});
-  const [columnVisibility, setColumnVisibility] =
-    React.useState<VisibilityState>({});
-  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
-    []
-  );
-  const [sorting, setSorting] = React.useState<SortingState>([]);
-  const [pagination, setPagination] = React.useState({
+  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
+  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
+  const [sorting, setSortingState] = React.useState<SortingState>([]);
+  const [paginationState, setPaginationState] = React.useState({
     pageIndex: 0,
     pageSize: 10,
   });
-  const [isLoading, setIsLoading] = React.useState(true);
 
   // Confirmation dialog state
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
-  const [clientToDelete, setClientToDelete] = React.useState<ClientData | null>(
-    null
-  );
-  const [isDeleting, setIsDeleting] = React.useState(false);
+  const [clientToDelete, setClientToDelete] = React.useState<ClientData | null>(null);
 
+  // Edit dialog state
+  const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false);
+  const [editingClient, setEditingClient] = React.useState<ClientData | null>(null);
+
+  // Get clients data from Redux response
+  const rawData = clientsResponse?.data;
+  const data: ClientData[] = Array.isArray(rawData) 
+    ? rawData.map(client => ({
+        _id: client._id || '',
+        firstName: client.firstName || '',
+        lastName: client.lastName || '',
+        email: client.email,
+        role: 'client', // Default role since Client interface doesn't have role
+        phone: client.phone || 0,
+        address: client.address || '', // Keep as is - will be handled in rendering
+        status: client.status ?? true,
+        image: client.image,
+        createdAt: client.createdAt?.toString() || new Date().toISOString(),
+        updatedAt: client.updatedAt?.toString() || new Date().toISOString(),
+      }))
+    : [];
+  const totalPages = clientsResponse?.pagination?.pages || 0;
+  const totalItems = clientsResponse?.pagination?.total || 0;
+
+  // Update pagination state when Redux pagination changes
   useEffect(() => {
-    loadClients();
-  }, []);
+    setPaginationState({
+      pageIndex: pagination.page - 1,
+      pageSize: pagination.limit,
+    });
+  }, [pagination.page, pagination.limit]);
 
-  // Function to load clients
-  const loadClients = async () => {
-    try {
-      setIsLoading(true);
-      const clients = await fetchClients();
-      setData(clients);
-    } catch (error) {
-      console.error("Error loading clients:", error);
-      toast.error("Failed to load clients");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  // Sync row selection with Redux selectedClients
+  useEffect(() => {
+    const selectionObj: Record<string, boolean> = {};
+    selectedClients.forEach(id => {
+      selectionObj[id] = true;
+    });
+    setRowSelection(selectionObj);
+  }, [selectedClients]);
 
   // Handle view client
   const handleViewClient = (client: ClientData) => {
@@ -137,8 +204,8 @@ export function ClientsClient() {
 
   // Handle edit client
   const handleEditClient = (client: ClientData) => {
-    // Navigate to client edit page
-    window.location.href = `/clients/${client._id}/edit`;
+    setEditingClient(client);
+    setIsEditDialogOpen(true);
   };
 
   // Handle delete button click
@@ -152,18 +219,11 @@ export function ClientsClient() {
     if (!clientToDelete) return;
 
     try {
-      setIsDeleting(true);
       const loadingToast = toast.loading("Deleting client...");
 
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/clients/${clientToDelete._id}`,
-        {
-          method: "DELETE",
-        }
-      );
+      const result = await deleteClient(clientToDelete._id).unwrap();
 
-      if (res.ok) {
-        await loadClients();
+      if (result.success) {
         setIsDeleteDialogOpen(false);
         setClientToDelete(null);
         toast.dismiss(loadingToast);
@@ -173,16 +233,14 @@ export function ClientsClient() {
       } else {
         toast.dismiss(loadingToast);
         toast.error("Failed to delete client", {
-          description: "Please try again later.",
+          description: result.message || "Please try again later.",
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error deleting client:", error);
       toast.error("Error deleting client", {
-        description: "An unexpected error occurred. Please try again.",
+        description: error?.data?.message || "An unexpected error occurred. Please try again.",
       });
-    } finally {
-      setIsDeleting(false);
     }
   };
 
@@ -193,34 +251,37 @@ export function ClientsClient() {
   };
 
   // Handle bulk delete
-  const handleBulkDelete = () => {
+  const handleBulkDelete = async () => {
     const selectedRows = table.getFilteredSelectedRowModel().rows;
-    const selectedClients = selectedRows.map((row) => row.original);
+    const selectedClientIds = selectedRows.map((row) => row.original._id);
 
-    if (selectedClients.length === 0) {
+    if (selectedClientIds.length === 0) {
       toast.error("No clients selected");
       return;
     }
 
-    toast.promise(
-      new Promise((resolve) => {
-        setTimeout(() => {
-          setData(
-            data.filter(
-              (client) =>
-                !selectedClients.find((selected) => selected._id === client._id)
-            )
-          );
-          setRowSelection({});
-          resolve(true);
-        }, 1000);
-      }),
-      {
-        loading: `Deleting ${selectedClients.length} client(s)...`,
-        success: `Successfully deleted ${selectedClients.length} client(s)`,
-        error: "Failed to delete clients",
+    try {
+      const loadingToast = toast.loading(`Deleting ${selectedClientIds.length} client(s)...`);
+
+      const result = await bulkDeleteClients(selectedClientIds).unwrap();
+
+      if (result.success) {
+        dispatch(clearSelection());
+        setRowSelection({});
+        toast.dismiss(loadingToast);
+        toast.success(`Successfully deleted ${selectedClientIds.length} client(s)`);
+      } else {
+        toast.dismiss(loadingToast);
+        toast.error("Failed to delete clients", {
+          description: result.message || "Please try again later.",
+        });
       }
-    );
+    } catch (error: any) {
+      console.error("Error bulk deleting clients:", error);
+      toast.error("Failed to delete clients", {
+        description: error?.data?.message || "An unexpected error occurred. Please try again.",
+      });
+    }
   };
 
   // Get status styles
@@ -235,7 +296,7 @@ export function ClientsClient() {
     return <div className={`w-2 h-2 rounded-full ${dotColor}`} />;
   };
 
-  const columns: ColumnDef<z.infer<typeof clientSchema>>[] = [
+  const columns: ColumnDef<ClientData>[] = [
     {
       id: "select",
       header: ({ table }) => (
@@ -342,7 +403,7 @@ export function ClientsClient() {
         <div className="flex items-start text-sm max-w-xs">
           <MapPin className="mr-2 h-3 w-3 text-gray-400 mt-0.5 flex-shrink-0" />
           <span className="text-gray-600 line-clamp-2">
-            {row.original.address}
+            {formatAddress(row.original.address)}
           </span>
         </div>
       ),
@@ -408,19 +469,46 @@ export function ClientsClient() {
       columnVisibility,
       rowSelection,
       columnFilters,
-      pagination,
+      pagination: paginationState,
     },
     getRowId: (row) => row._id,
     enableRowSelection: true,
-    onRowSelectionChange: setRowSelection,
-    onSortingChange: setSorting,
+    onRowSelectionChange: (updater) => {
+      const newSelection = typeof updater === 'function' ? updater(rowSelection) : updater;
+      setRowSelection(newSelection);
+      
+      // Update Redux selectedClients
+      const selectedIds = Object.keys(newSelection).filter(key => newSelection[key]);
+      dispatch(setSelectedClients(selectedIds));
+    },
+    onSortingChange: (updater) => {
+      const newSorting = typeof updater === 'function' ? updater(sorting) : updater;
+      setSortingState(newSorting);
+      
+      if (newSorting.length > 0) {
+        const sort = newSorting[0];
+        dispatch(setSorting({
+          sortBy: sort.id,
+          sortOrder: sort.desc ? 'desc' : 'asc'
+        }));
+      }
+    },
     onColumnFiltersChange: setColumnFilters,
     onColumnVisibilityChange: setColumnVisibility,
-    onPaginationChange: setPagination,
+    onPaginationChange: (updater) => {
+      const newPagination = typeof updater === 'function' ? updater(paginationState) : updater;
+      setPaginationState(newPagination);
+      
+      // Update Redux pagination
+      dispatch(setPage(newPagination.pageIndex + 1));
+      dispatch(setLimit(newPagination.pageSize));
+    },
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
+    manualPagination: true,
+    pageCount: totalPages,
   });
 
   if (isLoading) {
@@ -454,15 +542,10 @@ export function ClientsClient() {
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search clients..."
-                value={
-                  (table.getColumn("firstName")?.getFilterValue() as string) ??
-                  ""
-                }
-                onChange={(event) =>
-                  table
-                    .getColumn("firstName")
-                    ?.setFilterValue(event.target.value)
-                }
+                value={searchTerm}
+                onChange={(event) => {
+                  dispatch(setSearchTerm(event.target.value));
+                }}
                 className="pl-8"
               />
             </div>
@@ -504,10 +587,10 @@ export function ClientsClient() {
                 variant="destructive"
                 size="sm"
                 onClick={handleBulkDelete}
+                disabled={isBulkDeleting}
               >
                 <Trash2 className="mr-2 h-4 w-4" />
-                Delete Selected (
-                {table.getFilteredSelectedRowModel().rows.length})
+                {isBulkDeleting ? "Deleting..." : `Delete Selected (${table.getFilteredSelectedRowModel().rows.length})`}
               </Button>
             )}
           </div>
@@ -569,7 +652,7 @@ export function ClientsClient() {
           <div className="flex items-center justify-between px-4">
             <div className="hidden flex-1 text-sm text-muted-foreground lg:flex">
               {table.getFilteredSelectedRowModel().rows.length} of{" "}
-              {table.getFilteredRowModel().rows.length} row(s) selected.
+              {totalItems} row(s) selected.
             </div>
             <div className="flex w-full items-center gap-8 lg:w-fit">
               <div className="hidden items-center gap-2 lg:flex">
@@ -577,9 +660,9 @@ export function ClientsClient() {
                   Rows per page
                 </Label>
                 <Select
-                  value={`${table.getState().pagination.pageSize}`}
+                  value={`${pagination.limit}`}
                   onValueChange={(value) => {
-                    table.setPageSize(Number(value));
+                    dispatch(setLimit(Number(value)));
                   }}
                 >
                   <SelectTrigger className="w-20" id="rows-per-page">
@@ -597,15 +680,14 @@ export function ClientsClient() {
                 </Select>
               </div>
               <div className="flex w-fit items-center justify-center text-sm font-medium">
-                Page {table.getState().pagination.pageIndex + 1} of{" "}
-                {table.getPageCount()}
+                Page {pagination.page} of {totalPages}
               </div>
               <div className="ml-auto flex items-center gap-2 lg:ml-0">
                 <Button
                   variant="outline"
                   className="hidden h-8 w-8 p-0 lg:flex"
-                  onClick={() => table.setPageIndex(0)}
-                  disabled={!table.getCanPreviousPage()}
+                  onClick={() => dispatch(setPage(1))}
+                  disabled={pagination.page <= 1}
                 >
                   <span className="sr-only">Go to first page</span>
                   <ChevronsLeftIcon />
@@ -614,8 +696,8 @@ export function ClientsClient() {
                   variant="outline"
                   className="size-8"
                   size="icon"
-                  onClick={() => table.previousPage()}
-                  disabled={!table.getCanPreviousPage()}
+                  onClick={() => dispatch(setPage(pagination.page - 1))}
+                  disabled={pagination.page <= 1}
                 >
                   <span className="sr-only">Go to previous page</span>
                   <ChevronLeftIcon />
@@ -624,8 +706,8 @@ export function ClientsClient() {
                   variant="outline"
                   className="size-8"
                   size="icon"
-                  onClick={() => table.nextPage()}
-                  disabled={!table.getCanNextPage()}
+                  onClick={() => dispatch(setPage(pagination.page + 1))}
+                  disabled={pagination.page >= totalPages}
                 >
                   <span className="sr-only">Go to next page</span>
                   <ChevronRightIcon />
@@ -634,8 +716,8 @@ export function ClientsClient() {
                   variant="outline"
                   className="hidden size-8 lg:flex"
                   size="icon"
-                  onClick={() => table.setPageIndex(table.getPageCount() - 1)}
-                  disabled={!table.getCanNextPage()}
+                  onClick={() => dispatch(setPage(totalPages))}
+                  disabled={pagination.page >= totalPages}
                 >
                   <span className="sr-only">Go to last page</span>
                   <ChevronsRightIcon />
@@ -754,6 +836,13 @@ export function ClientsClient() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Edit Client Dialog */}
+      <EditClientDialog
+        open={isEditDialogOpen}
+        onOpenChange={setIsEditDialogOpen}
+        client={editingClient}
+      />
     </div>
   );
 }

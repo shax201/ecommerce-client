@@ -52,7 +52,7 @@ export function EditColorForm({ color }: EditColorFormProps) {
       
       // Redirect back to colors list
       setTimeout(() => {
-        router.push("/attributes/colors")
+        router.push("/admin/attributes/colors")
       }, 1500)
     } catch (error: any) {
       console.error("Error updating color:", error)

@@ -107,7 +107,7 @@ export function ColorsClient({ initialColors }: ColorClientProps) {
       description: `Editing color "${color.color}"`
     })
     // Implement edit functionality - navigate to edit page
-    router.push(`/attributes/colors/edit/${color._id}`)
+    router.push(`/admin/attributes/colors/edit/${color._id}`)
   }
 
   // Handle delete button click
@@ -326,7 +326,7 @@ export function ColorsClient({ initialColors }: ColorClientProps) {
             <h2 className="text-3xl font-bold tracking-tight">Colors</h2>
             <p className="text-muted-foreground">Manage product color attributes</p>
           </div>
-          <Button onClick={() => router.push("/attributes/colors/add")}>
+          <Button onClick={() => router.push("/admin/attributes/colors/add")}>
             <PlusIcon className="mr-2 h-4 w-4" />
             Add Color
           </Button>

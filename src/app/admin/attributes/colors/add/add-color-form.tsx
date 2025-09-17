@@ -190,7 +190,7 @@ export function AddColorForm() {
       
       // Redirect back to colors list
       setTimeout(() => {
-        router.push("/attributes/colors")
+        router.push("/admin/attributes/colors")
       }, 1500)
     } catch (error: any) {
       console.error("Error creating colors:", error)

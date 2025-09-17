@@ -73,7 +73,7 @@ const data = {
       icon: Package,
     },
     {
-      title: "Orders (by Shahadat)",
+      title: "Orders",
       url: "/admin/orders",
       icon: ShoppingCart,
       submenu: [
@@ -92,7 +92,7 @@ const data = {
       ],
     },
     {
-      title: "Coupons (by Shahadat)",
+      title: "Coupons",
       url: "/admin/coupons",
       icon: ShoppingCart,
     },
@@ -102,17 +102,17 @@ const data = {
       icon: Users,
     },
     {
-      title: "User Management (by Shahadat)",
+      title: "User Management",
       url: "/admin/users",
       icon: UserCog,
     },
     {
-      title: "Content (by Shahadat)",
+      title: "Content",
       url: "/admin/content",
       icon: FileText,
     },
     {
-      title: "Reports (by Shahadat)",
+      title: "Reports",
       url: "/admin/reports",
       icon: BarChart3,
       submenu: [
@@ -123,7 +123,7 @@ const data = {
       ],
     },
     {
-      title: "Permissions (by Shahadat)",
+      title: "Permissions",
       url: "/admin/permissions",
       icon: Shield,
     },
@@ -131,8 +131,8 @@ const data = {
 
   navSecondary: [
     {
-      title: "Settings  (by Shahadat)",
-      url: "/admin/dashboard/settings",
+      title: "Settings",
+      url: "/admin/settings",
       icon: SettingsIcon,
     },
 

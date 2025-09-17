@@ -13,6 +13,11 @@ import { permissionReducer } from "./features/permissions";
 import { userManagementReducer } from "./features/user-management";
 import { logosReducer } from "./features/logos";
 import { heroSectionsReducer } from "./features/hero-sections";
+import { userSettingsReducer } from "./features/user-settings";
+import { dynamicMenusReducer } from "./features/dynamic-menus";
+import { clientLogosReducer } from "./features/client-logos";
+import { clientReducer } from "./features/clients";
+import { clientApi } from "./features/clients/clientApi";
 import { apiSlice } from "./features/api/apiSlice";
 
 const persistConfig = {
@@ -35,7 +40,12 @@ const rootReducer = combineReducers({
   userManagement: userManagementReducer,
   logos: logosReducer,
   heroSections: heroSectionsReducer,
+  userSettings: userSettingsReducer,
+  dynamicMenus: dynamicMenusReducer,
+  clientLogos: clientLogosReducer,
+  clients: clientReducer,
   [apiSlice.reducerPath]: apiSlice.reducer,
+  [clientApi.reducerPath]: clientApi.reducer,
 });
 const persistedReducer = persistReducer(persistConfig, rootReducer);
 
@@ -46,7 +56,7 @@ export const makeStore = () => {
     middleware: (getDefaultMiddleware) =>
       getDefaultMiddleware({
         serializableCheck: false,
-      }).concat(apiSlice.middleware),
+      }).concat(apiSlice.middleware, clientApi.middleware),
   });
 
   const persistor = persistStore(store);

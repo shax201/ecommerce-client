@@ -7,7 +7,7 @@ const AttributesPage = () => {
         <div className="p-6">
             <h1 className="text-2xl font-bold mb-6">Attributes</h1>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Link href="/attributes/colors">
+                <Link href="/admin/attributes/colors">
                     <div className="bg-white p-6 rounded-lg shadow hover:shadow-md transition-shadow cursor-pointer">
                         <div className="flex items-center gap-3 mb-3">
                             <Bookmark className="h-6 w-6 text-blue-500" />
@@ -17,7 +17,7 @@ const AttributesPage = () => {
                     </div>
                 </Link>
                 
-                <Link href="/attributes/sizes">
+                <Link href="/admin/attributes/sizes">
                     <div className="bg-white p-6 rounded-lg shadow hover:shadow-md transition-shadow cursor-pointer">
                         <div className="flex items-center gap-3 mb-3">
                             <Ruler className="h-6 w-6 text-green-500" />

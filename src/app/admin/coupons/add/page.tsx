@@ -185,7 +185,7 @@ export default function AddCouponPage() {
         toast.success("Coupon created successfully!", {
           description: `Coupon "${formData.code}" has been created`,
         });
-        router.push("/coupons");
+        router.push("/admin/coupons");
       } else {
         toast.dismiss(loadingToast);
         toast.error("Operation failed", {

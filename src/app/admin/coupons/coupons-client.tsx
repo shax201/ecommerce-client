@@ -187,7 +187,7 @@ export function CouponsClient() {
 
   // Handle edit button click
   const handleEditClick = (coupon: Coupon) => {
-    router.push(`/coupons/edit/${coupon._id}`);
+    router.push(`/admin/coupons/edit/${coupon._id}`);
   };
 
   // Handle delete button click
@@ -671,7 +671,7 @@ export function CouponsClient() {
             </p>
           </div>
           <Button
-            onClick={() => router.push("/coupons/add")}
+            onClick={() => router.push("/admin/coupons/add")}
           >
             <PlusIcon className="mr-2 h-4 w-4" />
             Add Coupon
