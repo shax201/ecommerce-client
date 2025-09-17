@@ -1,6 +1,6 @@
 import { AddressObject } from '@/lib/utils/address-utils';
 
-export { AddressObject };
+export type { AddressObject };
 
 export interface ClientData {
   _id: string

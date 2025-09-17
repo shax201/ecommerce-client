@@ -48,7 +48,7 @@ export function EditClientDialog({ open, onOpenChange, client }: EditClientDialo
     image: "",
   });
 
-  const [errors, setErrors] = useState<Partial<UpdateClientRequest>>({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Update form data when client changes
   useEffect(() => {
@@ -75,15 +75,16 @@ export function EditClientDialog({ open, onOpenChange, client }: EditClientDialo
     
     // Clear error when user starts typing
     if (errors[field]) {
-      setErrors(prev => ({
-        ...prev,
-        [field]: undefined,
-      }));
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[field];
+        return newErrors;
+      });
     }
   };
 
   const validateForm = (): boolean => {
-    const newErrors: Partial<UpdateClientRequest> = {};
+    const newErrors: Record<string, string> = {};
 
     if (!formData.firstName?.trim()) {
       newErrors.firstName = "First name is required";
