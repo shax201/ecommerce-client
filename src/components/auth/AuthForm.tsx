@@ -21,10 +21,11 @@ import {
   AlertCircle,
   CheckCircle2,
   Loader2,
+  Shield,
+  ShoppingCart,
 } from "lucide-react";
 import {
   useLoginMutation,
-  useAdminLoginMutation,
   useSignupMutation,
   useForgotPasswordMutation,
   setUser,
@@ -37,7 +38,6 @@ import { useRouter } from "next/navigation";
 
 export default function AuthForm() {
   const [mode, setMode] = useState<"signin" | "signup" | "forgot">("signin");
-  const [userType, setUserType] = useState<"admin" | "client">("client");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const router = useRouter();
@@ -48,7 +48,6 @@ export default function AuthForm() {
 
   // Redux mutations
   const [login, { isLoading: isLoginLoading, error: loginError }] = useLoginMutation();
-  const [adminLogin, { isLoading: isAdminLoginLoading, error: adminLoginError }] = useAdminLoginMutation();
   const [signup, { isLoading: isSignupLoading, error: signupError }] = useSignupMutation();
   const [forgotPassword, { isLoading: isForgotPasswordLoading, error: forgotPasswordError }] = useForgotPasswordMutation();
 
@@ -71,7 +70,7 @@ export default function AuthForm() {
 
 
 
-  const isPending = isLoginLoading || isAdminLoginLoading || isSignupLoading || isForgotPasswordLoading;
+  const isPending = isLoginLoading || isSignupLoading || isForgotPasswordLoading;
 
   // Form handlers
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -138,43 +137,23 @@ export default function AuthForm() {
 
     try {
       dispatch(clearError());
-      let result;
+      
+      const result = await login({
+        email: formData.email,
+        password: formData.password,
+      }).unwrap();
 
-      if (userType === "admin") {
-        // Clear client data before admin login
-        if (typeof window !== 'undefined') {
-          localStorage.removeItem("user-token");
-          localStorage.removeItem("client");
-          console.log("✅ [Admin Login] Cleared client tokens and data");
-        }
-
-        result = await adminLogin({
-          email: formData.email,
-          password: formData.password,
-        }).unwrap();
-
-        if (result.success) {
-          dispatch(setUser(result.data.admin));
+      if (result.success) {
+        const user = result.data.user;
+        dispatch(setUser(user));
+        
+        // Redirect based on user role
+        if (user.role === 'admin') {
           setSuccessMessage("Admin login successful!");
-          router.push("/admin");
-        }
-      } else {
-        // Clear admin data before client login
-        if (typeof window !== 'undefined') {
-          localStorage.removeItem("admin-token");
-          localStorage.removeItem("admin");
-          console.log("✅ [Client Login] Cleared admin tokens and data");
-        }
-
-        result = await login({
-          email: formData.email,
-          password: formData.password,
-        }).unwrap();
-
-        if (result.success) {
-          dispatch(setUser(result.data.client));
-          setSuccessMessage("Client login successful!");
-          router.push("/");
+          router.push("/admin/dashboard");
+        } else {
+          setSuccessMessage("Login successful!");
+          router.push("/account");
         }
       }
     } catch (error: any) {
@@ -204,7 +183,7 @@ export default function AuthForm() {
       const result = await signup(signupData).unwrap();
 
       if (result.success) {
-        dispatch(setUser(result.data.client));
+        dispatch(setUser(result.data.user));
         setSuccessMessage("Account created successfully!");
         router.push("/");
       }
@@ -228,12 +207,49 @@ export default function AuthForm() {
     }
   };
 
+  const handleDemoLogin = async (type: 'admin' | 'customer') => {
+    try {
+      dispatch(clearError());
+      
+      // Demo credentials
+      const credentials = type === 'admin' 
+        ? { email: 'admin@ecommerce.com', password: 'Admin123!@#' }
+        : { email: 'customer2@example.com', password: 'Buyer123!@#' };
+
+      // Auto-fill the form
+      setFormData(prev => ({
+        ...prev,
+        email: credentials.email,
+        password: credentials.password
+      }));
+
+      // Perform login
+      const result = await login(credentials).unwrap();
+
+      if (result.success) {
+        const user = result.data.user;
+        dispatch(setUser(user));
+        
+        // Redirect based on user role
+        if (user.role === 'admin') {
+          setSuccessMessage("Admin demo login successful!");
+          router.push("/admin/dashboard");
+        } else {
+          setSuccessMessage("Customer demo login successful!");
+          router.push("/account");
+        }
+      }
+    } catch (error: any) {
+      dispatch(setError(error.data?.message || "Demo login failed"));
+    }
+  };
+
   const getTitle = () => {
     switch (mode) {
       case "signup":
         return "Create Account";
       case "signin":
-        return userType === "admin" ? "Admin Login" : "Welcome Back";
+        return "Welcome Back";
       case "forgot":
         return "Reset Password";
     }
@@ -244,9 +260,7 @@ export default function AuthForm() {
       case "signup":
         return "Sign up to get started with your account";
       case "signin":
-        return userType === "admin" 
-          ? "Sign in to your admin account to access the dashboard" 
-          : "Sign in to your account to continue";
+        return "Sign in to your account to continue";
       case "forgot":
         return "Enter your email to receive a password reset link";
     }
@@ -496,42 +510,6 @@ export default function AuthForm() {
             {/* Sign In Form */}
             {mode === "signin" && (
               <form onSubmit={handleLogin} className="space-y-4">
-                {/* User Type Selection */}
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium text-slate-700">
-                    Login As
-                  </Label>
-                  <div className="flex space-x-4">
-                    <Button
-                      type="button"
-                      variant={userType === "client" ? "default" : "outline"}
-                      onClick={() => setUserType("client")}
-                      className={`flex-1 ${
-                        userType === "client" 
-                          ? "bg-emerald-600 hover:bg-emerald-700 text-white" 
-                          : "border-slate-200 text-slate-700 hover:bg-slate-50"
-                      }`}
-                      disabled={isPending}
-                    >
-                      <User className="w-4 h-4 mr-2" />
-                      Client
-                    </Button>
-                    <Button
-                      type="button"
-                      variant={userType === "admin" ? "default" : "outline"}
-                      onClick={() => setUserType("admin")}
-                      className={`flex-1 ${
-                        userType === "admin" 
-                          ? "bg-emerald-600 hover:bg-emerald-700 text-white" 
-                          : "border-slate-200 text-slate-700 hover:bg-slate-50"
-                      }`}
-                      disabled={isPending}
-                    >
-                      <User className="w-4 h-4 mr-2" />
-                      Admin
-                    </Button>
-                  </div>
-                </div>
 
                 {/* Email Field */}
                 <div className="space-y-2">
@@ -604,10 +582,10 @@ export default function AuthForm() {
                   {isPending ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      {userType === "admin" ? "Signing in as Admin..." : "Signing In..."}
+                      Signing In...
                     </>
                   ) : (
-                    userType === "admin" ? "Sign In as Admin" : "Sign In"
+                    "Sign In"
                   )}
                 </Button>
               </form>
@@ -656,6 +634,46 @@ export default function AuthForm() {
                   )}
                 </Button>
               </form>
+            )}
+
+            {/* Demo Login Buttons - Only show on signin mode */}
+            {mode === "signin" && (
+              <div className="space-y-3">
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t border-slate-200" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-white px-2 text-slate-500">Demo Accounts</span>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-1 gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => handleDemoLogin('admin')}
+                    className="w-full border-blue-200 text-blue-700 hover:bg-blue-50 hover:border-blue-300"
+                    disabled={isPending}
+                  >
+                    <Shield className="mr-2 h-4 w-4" />
+                    Login as Admin
+                    <span className="ml-2 text-xs text-blue-500">(admin@ecommerce.com)</span>
+                  </Button>
+                  
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => handleDemoLogin('customer')}
+                    className="w-full border-green-200 text-green-700 hover:bg-green-50 hover:border-green-300"
+                    disabled={isPending}
+                  >
+                    <ShoppingCart className="mr-2 h-4 w-4" />
+                    Login as Customer
+                    <span className="ml-2 text-xs text-green-500">(customer1@example.com)</span>
+                  </Button>
+                </div>
+              </div>
             )}
 
             {/* Mode Switcher */}

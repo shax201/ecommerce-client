@@ -62,6 +62,7 @@ const authSlice = createSlice({
       // Clear localStorage
       if (typeof window !== 'undefined') {
         localStorage.removeItem("user-token");
+        localStorage.removeItem("user");
         localStorage.removeItem("client");
         // Note: Cookie clearing is handled by the logout mutation
       }
@@ -74,7 +75,9 @@ const authSlice = createSlice({
       if (typeof window !== 'undefined') {
         localStorage.removeItem("admin-token");
         localStorage.removeItem("admin");
-        localStorage.removeItem("user-token"); // Also clear user-token for admin logout
+        localStorage.removeItem("user-token");
+        localStorage.removeItem("user");
+        localStorage.removeItem("client");
         // Note: Cookie clearing is handled by the logout mutation
       }
     },
@@ -96,15 +99,17 @@ const authSlice = createSlice({
           hasAdminToken: !!adminToken
         });
         
-        // Initialize user auth
-        if (client && token) {
+        // Initialize user auth - check both 'user' and 'client' for backward compatibility
+        const userData = localStorage.getItem("user") || client;
+        if (userData && token) {
           try {
-            state.user = JSON.parse(client);
+            state.user = JSON.parse(userData);
             state.isAuthenticated = true;
             console.log("User authenticated from localStorage");
           } catch (error) {
             console.error("Error parsing user data from localStorage:", error);
             // Clear invalid data
+            localStorage.removeItem("user");
             localStorage.removeItem("client");
             localStorage.removeItem("user-token");
           }

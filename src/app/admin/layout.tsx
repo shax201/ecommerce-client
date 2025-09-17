@@ -14,9 +14,9 @@ export default function AdminLayout({
   const pathname = usePathname()
   
   // Don't show layout for login page
-  if (pathname === "/admin/login") {
-    return <>{children}</>
-  }
+  // if (pathname === "/admin/login") {
+  //   return <>{children}</>
+  // }
 
   return (
     <AdminAuth>

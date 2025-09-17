@@ -174,8 +174,8 @@ const TopNavbar = ({ dynamicMenus, logo }: TopNavbarProps) => {
   }
 
   return (
-    <nav className="sticky top-0 bg-white z-20">
-      <div className="flex relative max-w-frame mx-auto items-center justify-between md:justify-start py-5 md:py-6 px-4 xl:px-0">
+    <nav className="sticky top-0 bg-white z-30">
+      <div className="flex relative max-w-frame mx-auto items-center justify-between md:justify-start py-5 md:py-6 px-4 xl:px-0 overflow-visible">
         <div className="flex items-center">
           <div className="block md:hidden mr-4">
             <ResTopNavbar data={menuData} />
@@ -257,7 +257,7 @@ const TopNavbar = ({ dynamicMenus, logo }: TopNavbarProps) => {
             className="bg-transparent placeholder:text-black/40"
           />
         </InputGroup>
-        <div className="flex items-center">
+        <div className="flex items-center relative">
           <Link href="/search" className="block md:hidden mr-[14px] p-1">
             <Image
               priority

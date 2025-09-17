@@ -28,6 +28,7 @@ const UserDropdown: React.FC<UserDropdownProps> = ({ user, isAuthenticated }) =>
   const router = useRouter();
   const [logoutMutation, { isLoading: isLoggingOut }] = useLogoutMutation();
 
+
   const handleLogout = async () => {
     try {
       // Call the logout API mutation
@@ -98,7 +99,9 @@ const UserDropdown: React.FC<UserDropdownProps> = ({ user, isAuthenticated }) =>
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button className="p-1 hover:opacity-70 transition-opacity">
+        <button 
+          className="p-1 hover:opacity-70 transition-opacity"
+        >
           <Image
             priority
             src="/icons/user.svg"
@@ -109,7 +112,11 @@ const UserDropdown: React.FC<UserDropdownProps> = ({ user, isAuthenticated }) =>
           />
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
+      <DropdownMenuContent 
+        align="end" 
+        className="w-56 z-50 bg-white border shadow-lg"
+        sideOffset={5}
+      >
         <div className="px-2 py-1.5">
           <p className="text-sm font-medium">{user.firstName} {user.lastName}</p>
           <p className="text-xs text-muted-foreground">{user.email}</p>

@@ -66,7 +66,7 @@ async function verifyToken(token: string): Promise<{ valid: boolean; payload?: a
     const { payload } = await jwtVerify(token, secret);
     return { valid: true, payload };
   } catch (error) {
-    console.log("JWT verification error:", error);
+
     return { valid: false, error: "Invalid or expired token" };
   }
 }
@@ -106,7 +106,7 @@ export async function middleware(req: NextRequest) {
   // Define routes
   const publicRoutes = ["/auth", "/signin", "/signup", "/forgot-password", "/"];
   const privateRoutes = [
-    "/dashboard",
+    "/admin/dashboard",
     "/profile", 
     "/settings",
     "/checkout",
@@ -115,44 +115,51 @@ export async function middleware(req: NextRequest) {
     "/admin"
   ];
 
+  if(token && pathname === '/signin'){
+    return NextResponse.redirect(new URL('/account', req.url));
+  }
+  // Check if route is private
+  const isPrivateRoute = privateRoutes.some(route => pathname.startsWith(route));
+  // If no token, redirect to login
+  if (!token) {
+    if(isPrivateRoute){
+      return NextResponse.redirect(new URL('/signin', req.url));
+    }else{
+      return NextResponse.next();
+    }
+  }
+
+
   // Check if route is public
   const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route));
+
+
+  if(pathname.startsWith('/admin')){
+    const tokenResult = await verifyToken(token);
+    
+    if(!tokenResult.valid){
+      return NextResponse.redirect(new URL('/signin', req.url));
+    }
+
+    const isAdmin = tokenResult.payload.role === 'admin';
+    console.log('isAdmin', isAdmin)
+    if(!isAdmin){
+      return NextResponse.redirect(new URL('/account', req.url));
+    }else{
+      return NextResponse.next();
+    }
+  }
+  
+
   if (isPublicRoute) {
     return NextResponse.next();
   }
 
-  // Check if route is private
-  const isPrivateRoute = privateRoutes.some(route => pathname.startsWith(route));
+
   if (!isPrivateRoute) {
     return NextResponse.next();
   }
 
-  // If no token, redirect to login
-  if (!token) {
-    return NextResponse.redirect(new URL('/auth', req.url));
-  }
-
-  // Verify token
-  const tokenResult = await verifyToken(token);
-  if (!tokenResult.valid) {
-    return NextResponse.redirect(new URL('/auth', req.url));
-  }
-
-  // Check permissions for admin routes
-  if (pathname.startsWith('/admin')) {
-    const requiredPermission = ROUTE_PERMISSIONS[pathname];
-    if (requiredPermission) {
-      const hasPermission = await checkUserPermission(
-        token, 
-        requiredPermission.resource, 
-        requiredPermission.action
-      );
-      
-      if (!hasPermission) {
-        return NextResponse.redirect(new URL('/unauthorized', req.url));
-      }
-    }
-  }
 
   return NextResponse.next();
 }
