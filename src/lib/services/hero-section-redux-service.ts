@@ -325,7 +325,7 @@ export const useHeroSectionReduxService = () => {
     heroSections,
     pagination,
     loading: isAnyLoading,
-    error: error?.message || null,
+    error: error ? (typeof error === 'object' && 'message' in error ? error.message : 'An error occurred') : null,
     refetch,
     createHeroSection,
     updateHeroSection,

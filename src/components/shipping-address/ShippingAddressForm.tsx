@@ -14,6 +14,7 @@ import {
   UpdateShippingAddressData,
   ShippingAddress,
 } from "@/lib/features/shipping-address";
+import { useAppSelector } from "@/lib/hooks/redux";
 
 interface ShippingAddressFormProps {
   address?: ShippingAddress | null;
@@ -22,6 +23,10 @@ interface ShippingAddressFormProps {
 }
 
 export function ShippingAddressForm({ address, onClose, onSuccess }: ShippingAddressFormProps) {
+  // Get user ID from Redux state
+  const { user } = useAppSelector((state) => state.auth);
+  const userId = user?._id || "";
+
   const [formData, setFormData] = useState({
     name: "",
     address: "",
@@ -29,7 +34,7 @@ export function ShippingAddressForm({ address, onClose, onSuccess }: ShippingAdd
     state: "",
     zip: "",
     country: "",
-    phone: "",
+    phone: 0,
     isDefault: false,
   });
 
@@ -59,7 +64,7 @@ export function ShippingAddressForm({ address, onClose, onSuccess }: ShippingAdd
     const { id, value, type, checked } = e.target;
     setFormData(prev => ({
       ...prev,
-      [id]: type === 'checkbox' ? checked : value,
+      [id]: type === 'checkbox' ? checked : (id === 'phone' ? parseInt(value) || 0 : value),
     }));
   };
 
@@ -91,6 +96,7 @@ export function ShippingAddressForm({ address, onClose, onSuccess }: ShippingAdd
           country: formData.country,
           phone: formData.phone,
           isDefault: formData.isDefault,
+          user: userId,
         };
 
         await createAddress(createData).unwrap();
@@ -139,9 +145,10 @@ export function ShippingAddressForm({ address, onClose, onSuccess }: ShippingAdd
             <Label htmlFor="phone">Phone Number</Label>
             <Input
               id="phone"
+              type="number"
               value={formData.phone}
               onChange={handleChange}
-              placeholder="+1 (555) 123-4567"
+              placeholder="1234567890"
               required
               disabled={isLoading}
             />

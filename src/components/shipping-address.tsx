@@ -48,7 +48,7 @@ export function ShippingAddressManager({
     state: "",
     zip: "",
     country: "",
-    phone: "",
+    phone: 0,
     isDefault: false,
   })
 
@@ -60,7 +60,7 @@ export function ShippingAddressManager({
       state: "",
       zip: "",
       country: "",
-      phone: "",
+      phone: 0,
       isDefault: false,
     })
   }
@@ -164,9 +164,9 @@ export function ShippingAddressManager({
                   <Label htmlFor="phone">Phone Number</Label>
                   <Input
                     id="phone"
-                    type="tel"
+                    type="number"
                     value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    onChange={(e) => setFormData({ ...formData, phone: parseInt(e.target.value) || 0 })}
                     required
                   />
                 </div>

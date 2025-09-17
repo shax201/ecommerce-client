@@ -45,8 +45,9 @@ export function AddressManagement() {
     state: "",
     zip: "",
     country: "Bangladesh",
-    phone: "",
+    phone: 0,
     isDefault: false,
+    user: "",
   });
 
   // Get user ID from Redux state
@@ -80,8 +81,9 @@ export function AddressManagement() {
         state: "",
         zip: "",
         country: "Bangladesh",
-        phone: "",
+        phone: 0,
         isDefault: false,
+        user: "",
       });
     } catch (err) {
       console.error("Error adding address:", err);
@@ -232,11 +234,12 @@ export function AddressManagement() {
                   <div>
                     <Label>Phone</Label>
                     <Input
+                      type="number"
                       value={newAddress.phone}
                       onChange={(e) =>
                         setNewAddress((prev) => ({
                           ...prev,
-                          phone: e.target.value,
+                          phone: parseInt(e.target.value) || 0,
                         }))
                       }
                     />
@@ -415,10 +418,11 @@ export function AddressManagement() {
                         <div>
                           <Label>Phone</Label>
                           <Input
+                            type="number"
                             value={editingAddress?.phone || ""}
                             onChange={(e) =>
                               setEditingAddress((prev) =>
-                                prev ? { ...prev, phone: e.target.value } : null
+                                prev ? { ...prev, phone: parseInt(e.target.value) || 0 } : null
                               )
                             }
                           />

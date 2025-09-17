@@ -23,7 +23,7 @@ import {
   Loader2,
 } from "lucide-react";
 import {
-  useAdminLoginMutation,
+  useLoginMutation,
   setAdmin,
   setError,
   clearError,
@@ -41,7 +41,7 @@ export default function AdminLoginForm() {
   const { admin, isAdminAuthenticated, isLoading, error } = useAppSelector((state) => state.auth);
 
   // Redux mutations
-  const [adminLogin, { isLoading: isLoginLoading, error: loginError }] = useAdminLoginMutation();
+  const [adminLogin, { isLoading: isLoginLoading, error: loginError }] = useLoginMutation();
 
   // Form state
   const [formData, setFormData] = useState({
@@ -104,7 +104,7 @@ export default function AdminLoginForm() {
       }).unwrap();
 
       if (result.success) {
-        dispatch(setAdmin(result.data.admin));
+        dispatch(setAdmin(result.data.user));
         setSuccessMessage("Admin login successful!");
         router.push("/admin/dashboard");
       }

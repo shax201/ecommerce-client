@@ -182,7 +182,7 @@ export const useLogoReduxService = () => {
   return {
     logos,
     loading: isAnyLoading,
-    error: error?.message || null,
+    error: error ? (typeof error === 'object' && 'message' in error ? error.message : 'An error occurred') : null,
     refetch,
     createLogo,
     updateLogo,
