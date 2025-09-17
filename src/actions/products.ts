@@ -209,7 +209,7 @@ const fetchProductsData = unstable_cache(
       if (filters.inStock !== undefined) searchParams.set('inStock', filters.inStock.toString());
       if (filters.rating) searchParams.set('rating', filters.rating.toString());
 
-      const response = await fetch(`${getBackendUrl()}/api/v1/products?${searchParams}`, {
+      const response = await fetch(`${getBackendUrl()}/products?${searchParams}`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",

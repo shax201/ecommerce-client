@@ -65,6 +65,8 @@ export default function ShopClient({
     filters,
   });
 
+
+  console.log('products', products )
   // Debug logging (only in development)
   if (process.env.NODE_ENV === "development") {
     console.log("🔍 Shop ISR Debug:", {
