@@ -1,5 +1,6 @@
 import { combineReducers, configureStore } from "@reduxjs/toolkit";
 import { persistReducer, persistStore } from "redux-persist";
+import { useDispatch, useSelector, TypedUseSelectorHook } from "react-redux";
 import storage from "@/components/storage";
 import productsReducer from "./features/products/productsSlice";
 import cartsReducer from "./features/carts/cartsSlice";
@@ -17,7 +18,7 @@ import { userSettingsReducer } from "./features/user-settings";
 import { dynamicMenusReducer } from "./features/dynamic-menus";
 import { clientLogosReducer } from "./features/client-logos";
 import { clientReducer } from "./features/clients";
-import { clientApi } from "./features/clients/clientApi";
+import { courierReducer } from "./features/courier";
 import { apiSlice } from "./features/api/apiSlice";
 
 const persistConfig = {
@@ -44,6 +45,7 @@ const rootReducer = combineReducers({
   dynamicMenus: dynamicMenusReducer,
   clientLogos: clientLogosReducer,
   clients: clientReducer,
+  courier: courierReducer,
   [apiSlice.reducerPath]: apiSlice.reducer
 });
 const persistedReducer = persistReducer(persistConfig, rootReducer);
@@ -52,10 +54,12 @@ export const makeStore = () => {
   const store = configureStore({
     reducer: persistedReducer,
     devTools: process.env.NODE_ENV !== "production",
-    middleware: (getDefaultMiddleware) =>
-      getDefaultMiddleware({
+    middleware: (getDefaultMiddleware) => {
+      const middleware = getDefaultMiddleware({
         serializableCheck: false,
-      }).concat(apiSlice.middleware),
+      });
+      return middleware.concat(apiSlice.middleware);
+    },
   });
 
   const persistor = persistStore(store);
@@ -69,5 +73,9 @@ export type AppStore = typeof store;
 // Infer the `RootState` and `AppDispatch` types from the store itself
 export type RootState = ReturnType<typeof store.getState>;
 export type AppDispatch = typeof store.dispatch;
+
+// Create typed hooks
+export const useAppDispatch = () => useDispatch<AppDispatch>();
+export const useAppSelector: TypedUseSelectorHook<RootState> = useSelector;
 
 export { store };

@@ -17,7 +17,7 @@ export default function TrackOrdersPage() {
     return (
       <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
         <div className="flex items-center space-x-4">
-          <Link href="/orders">
+          <Link href="/admin/orders">
             <Button variant="outline" size="sm">
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back to Orders
@@ -44,7 +44,7 @@ export default function TrackOrdersPage() {
     return (
       <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
         <div className="flex items-center space-x-4">
-          <Link href="/orders">
+          <Link href="/admin/orders">
             <Button variant="outline" size="sm">
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back to Orders

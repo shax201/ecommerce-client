@@ -9,7 +9,11 @@ const mockOrders: OrderData[] = [
     _id: "1",
     orderNumber: "ORD-001",
     date: "2024-01-15T10:30:00Z",
-    trackingSteps: ["ordered", "shipped", "delivered"],
+    trackingSteps: [
+      { status: "ordered", timestamp: "2024-01-15T10:30:00Z", location: "Warehouse", note: "Order placed" },
+      { status: "shipped", timestamp: "2024-01-16T14:20:00Z", location: "Distribution Center", note: "Package shipped" },
+      { status: "delivered", timestamp: "2024-01-18T09:15:00Z", location: "Customer Address", note: "Package delivered" }
+    ],
     currentStatus: "delivered",
     total: 150.00,
     currency: "USD",
@@ -44,7 +48,10 @@ const mockOrders: OrderData[] = [
     _id: "2",
     orderNumber: "ORD-002",
     date: "2024-01-16T14:20:00Z",
-    trackingSteps: ["ordered", "shipped"],
+    trackingSteps: [
+      { status: "ordered", timestamp: "2024-01-16T14:20:00Z", location: "Warehouse", note: "Order placed" },
+      { status: "shipped", timestamp: "2024-01-17T10:30:00Z", location: "Distribution Center", note: "Package shipped" }
+    ],
     currentStatus: "shipped",
     total: 89.99,
     currency: "USD",

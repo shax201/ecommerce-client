@@ -20,6 +20,7 @@ import {
   Settings,
   Shield,
   UserCog,
+  Truck,
 } from "lucide-react";
 
 import { NavMain } from "@/components/dashboard/nav-main";
@@ -90,6 +91,25 @@ const data = {
           url: "/admin/orders/analytics",
         },
       ],
+    },
+    {
+      title: "Courier",
+      url: "/admin/courier",
+      icon: Truck,
+      // submenu: [
+      //   {
+      //     title: "Credentials",
+      //     url: "/admin/courier/credentials",
+      //   },
+      //   {
+      //     title: "Operations",
+      //     url: "/admin/courier/operations",
+      //   },
+      //   {
+      //     title: "Order Integration",
+      //     url: "/admin/courier/orders",
+      //   },
+      // ],
     },
     {
       title: "Coupons",

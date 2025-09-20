@@ -53,7 +53,7 @@ export function BulkOperations({ orders, selectedOrders, onSelectionChange, onRe
     try {
       const promises = selectedOrders.map(orderId =>
         updateOrderStatus({
-          orderId,
+          id: orderId,
           status: bulkStatus,
         }).unwrap()
       );

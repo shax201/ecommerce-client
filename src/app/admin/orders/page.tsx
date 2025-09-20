@@ -29,7 +29,7 @@ export default function OrdersPage() {
     firstOrder: orders[0],
     clientIDType: typeof orders[0]?.clientID,
     clientIDValue: orders[0]?.clientID,
-    shippingEmail: orders[0]?.shipping?.email
+    shippingEmail: orders[0]?.clientID?.email
   } : 'No orders found');
 
   if (ordersLoading) {
@@ -105,7 +105,7 @@ export default function OrdersPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              ${analytics?.totalRevenue?.toLocaleString() || orders.reduce((sum, order) => sum + (order.total || order.totalPrice || 0), 0).toLocaleString()}
+              ${analytics?.totalRevenue?.toLocaleString() || orders.reduce((sum, order) => sum + (order.totalPrice || 0), 0).toLocaleString()}
             </div>
             <p className="text-xs text-muted-foreground">
               Total sales
@@ -120,7 +120,7 @@ export default function OrdersPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              ${analytics?.averageOrderValue?.toFixed(2) || (orders.length > 0 ? (orders.reduce((sum, order) => sum + (order.total || order.totalPrice || 0), 0) / orders.length).toFixed(2) : '0.00')}
+              ${analytics?.averageOrderValue?.toFixed(2) || (orders.length > 0 ? (orders.reduce((sum, order) => sum + (order.totalPrice || 0), 0) / orders.length).toFixed(2) : '0.00')}
             </div>
             <p className="text-xs text-muted-foreground">
               Per order
@@ -149,9 +149,9 @@ export default function OrdersPage() {
                   else if (typeof order.clientID === 'string') {
                     customerIds.add(order.clientID);
                   }
-                  // Fallback to shipping email
-                  else if (order.shipping?.email) {
-                    customerEmails.add(order.shipping.email);
+                  // Fallback to clientID email
+                  else if (order.clientID?.email) {
+                    customerEmails.add(order.clientID.email);
                   }
                 });
                 
@@ -175,8 +175,8 @@ export default function OrdersPage() {
                       customerIds.add(order.clientID._id);
                     } else if (typeof order.clientID === 'string') {
                       customerIds.add(order.clientID);
-                    } else if (order.shipping?.email) {
-                      customerEmails.add(order.shipping.email);
+                    } else if (order.clientID?.email) {
+                      customerEmails.add(order.clientID.email);
                     }
                   });
                   
@@ -225,7 +225,7 @@ export default function OrdersPage() {
       {/* Navigation Cards */}
       <div className="grid gap-4 md:grid-cols-3">
         <Card className="hover:shadow-md transition-shadow cursor-pointer">
-          <Link href="/orders/all">
+          <Link href="/admin/orders/all">
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
                 <div className="flex items-center">
@@ -245,7 +245,7 @@ export default function OrdersPage() {
         </Card>
 
         <Card className="hover:shadow-md transition-shadow cursor-pointer">
-          <Link href="/orders/track">
+          <Link href="/admin/orders/track">
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
                 <div className="flex items-center">
@@ -267,7 +267,7 @@ export default function OrdersPage() {
         </Card>
 
         <Card className="hover:shadow-md transition-shadow cursor-pointer">
-          <Link href="/orders/analytics">
+          <Link href="/admin/orders/analytics">
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
                 <div className="flex items-center">

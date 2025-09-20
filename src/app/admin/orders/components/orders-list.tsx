@@ -100,7 +100,7 @@ export function OrdersList({ orders, selectedOrders, onSelectionChange, onOrderS
     const matchesSearch = 
       order.orderNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       order._id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.products?.some(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
+      order.products?.some((p: any) => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
     
     const matchesStatus = statusFilter === "all" || 
       order.currentStatus?.toLowerCase() === statusFilter.toLowerCase() || 
@@ -127,11 +127,11 @@ export function OrdersList({ orders, selectedOrders, onSelectionChange, onOrderS
   };
 
   const handleViewDetails = (order: OrderData) => {
-    router.push(`/orders/${order._id}`);
+    router.push(`/admin/orders/${order._id}`);
   };
 
   const handleEditOrder = (order: OrderData) => {
-    router.push(`/orders/${order._id}/edit`);
+    router.push(`/admin/orders/${order._id}/edit`);
   };
 
   const getStatusBadge = (status: string) => {
@@ -367,7 +367,7 @@ export function OrdersList({ orders, selectedOrders, onSelectionChange, onOrderS
                 <div>
                   <h4 className="font-semibold">Products</h4>
                   <div className="space-y-2">
-                    {selectedOrder.products.map((product, index) => (
+                    {selectedOrder.products.map((product: any, index: number) => (
                       <div key={index} className="flex justify-between text-sm">
                         <span>{product.name}</span>
                         <span>Qty: {product.quantity} × ${product.price}</span>

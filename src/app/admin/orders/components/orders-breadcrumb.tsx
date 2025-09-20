@@ -12,7 +12,7 @@ interface OrdersBreadcrumbProps {
 export function OrdersBreadcrumb({ currentPage, showBackButton = true }: OrdersBreadcrumbProps) {
   return (
     <div className="flex items-center space-x-2 text-sm text-muted-foreground mb-4">
-      <Link href="/orders" className="flex items-center hover:text-foreground">
+      <Link href="/admin/orders" className="flex items-center hover:text-foreground">
         <Home className="h-4 w-4 mr-1" />
         Orders
       </Link>
@@ -20,7 +20,7 @@ export function OrdersBreadcrumb({ currentPage, showBackButton = true }: OrdersB
       <span className="text-foreground font-medium">{currentPage}</span>
       {showBackButton && (
         <div className="ml-auto">
-          <Link href="/orders">
+          <Link href="/admin/orders">
             <Button variant="outline" size="sm">
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back to Orders

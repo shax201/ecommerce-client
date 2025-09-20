@@ -119,7 +119,7 @@ export function OrderAnalytics() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {Object.values(analytics.ordersByStatus).reduce((a, b) => a + b, 0)}
+              {(Object.values(analytics.ordersByStatus) as number[]).reduce((a, b) => a + b, 0)}
             </div>
             <p className="text-xs text-muted-foreground">
               With orders
@@ -140,7 +140,7 @@ export function OrderAnalytics() {
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
             {Object.entries(analytics.ordersByStatus).map(([status, count]) => (
               <div key={status} className="text-center">
-                <div className="text-2xl font-bold">{count}</div>
+                <div className="text-2xl font-bold">{count as number}</div>
                 <Badge className={statusColors[status as keyof typeof statusColors]}>
                   {status.charAt(0).toUpperCase() + status.slice(1)}
                 </Badge>
@@ -161,7 +161,7 @@ export function OrderAnalytics() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {analytics.ordersByMonth.slice(0, 6).map((month, index) => (
+              {analytics.ordersByMonth.slice(0, 6).map((month: any, index: number) => (
                 <div key={index} className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
                     <Package className="h-4 w-4 text-muted-foreground" />
@@ -193,7 +193,7 @@ export function OrderAnalytics() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {analytics.topProducts.slice(0, 5).map((product, index) => (
+              {analytics.topProducts.slice(0, 5).map((product: any, index: number) => (
                 <div key={index} className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
                     <div className="w-6 h-6 bg-primary/10 rounded-full flex items-center justify-center text-xs font-medium">

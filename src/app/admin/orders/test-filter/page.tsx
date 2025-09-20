@@ -9,7 +9,11 @@ const mockOrders: OrderData[] = [
     _id: "1",
     orderNumber: "ORD-001",
     date: "2024-01-15T10:30:00Z",
-    trackingSteps: ["ordered", "shipped", "delivered"],
+    trackingSteps: [
+      { status: "ordered", timestamp: "2024-01-15T10:30:00Z", location: "Warehouse", note: "Order placed" },
+      { status: "shipped", timestamp: "2024-01-16T14:20:00Z", location: "Distribution Center", note: "Package shipped" },
+      { status: "delivered", timestamp: "2024-01-18T09:15:00Z", location: "Customer Address", note: "Package delivered" }
+    ],
     currentStatus: "delivered",
     status: "delivered", // Legacy field
     total: 150.00,
@@ -45,7 +49,10 @@ const mockOrders: OrderData[] = [
     _id: "2",
     orderNumber: "ORD-002",
     date: "2024-01-16T14:20:00Z",
-    trackingSteps: ["ordered", "shipped"],
+    trackingSteps: [
+      { status: "ordered", timestamp: "2024-01-16T14:20:00Z", location: "Warehouse", note: "Order placed" },
+      { status: "shipped", timestamp: "2024-01-17T10:30:00Z", location: "Distribution Center", note: "Package shipped" }
+    ],
     currentStatus: "shipped",
     status: "shipped", // Legacy field
     total: 89.99,
@@ -81,7 +88,9 @@ const mockOrders: OrderData[] = [
     _id: "3",
     orderNumber: "ORD-003",
     date: "2024-01-17T09:15:00Z",
-    trackingSteps: ["ordered"],
+    trackingSteps: [
+      { status: "ordered", timestamp: "2024-01-17T09:15:00Z", location: "Warehouse", note: "Order placed" }
+    ],
     currentStatus: "pending",
     status: "pending", // Legacy field
     total: 200.00,
@@ -117,7 +126,10 @@ const mockOrders: OrderData[] = [
     _id: "4",
     orderNumber: "ORD-004",
     date: "2024-01-18T16:45:00Z",
-    trackingSteps: ["ordered", "processing"],
+    trackingSteps: [
+      { status: "ordered", timestamp: "2024-01-18T11:45:00Z", location: "Warehouse", note: "Order placed" },
+      { status: "processing", timestamp: "2024-01-18T15:20:00Z", location: "Processing Center", note: "Order being processed" }
+    ],
     currentStatus: "processing",
     status: "processing", // Legacy field
     total: 75.50,

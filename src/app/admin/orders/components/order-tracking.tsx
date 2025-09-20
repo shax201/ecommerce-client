@@ -261,14 +261,14 @@ export function OrderTracking() {
                   <TableCell>
                     <div className="flex items-center space-x-2">
                       <Home className="h-4 w-4 text-muted-foreground" />
-                      <span>{order.shipping?.name || "N/A"}</span>
+                      <span>{order.clientID?.name || "N/A"}</span>
                     </div>
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center space-x-2">
                       <Clock className="h-4 w-4 text-muted-foreground" />
                       <span>
-                        {order.date ? format(new Date(order.date), "MMM dd, yyyy") : "N/A"}
+                        {order.createdAt ? format(new Date(order.createdAt), "MMM dd, yyyy") : "N/A"}
                       </span>
                     </div>
                   </TableCell>

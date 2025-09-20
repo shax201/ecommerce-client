@@ -77,7 +77,7 @@ export default function OrderDetailsPage() {
     
     try {
       await updateOrderStatus({
-        orderId: order._id,
+        id: order._id,
         status: status,
       }).unwrap();
       setIsEditing(false);
@@ -165,7 +165,7 @@ export default function OrderDetailsPage() {
               Order #{order.orderNumber || order._id.slice(-8)}
             </h1>
             <p className="text-muted-foreground">
-              Placed on {order.date ? format(new Date(order.date), "MMMM dd, yyyy 'at' h:mm a") : "N/A"}
+              Placed on {order.createdAt ? format(new Date(order.createdAt), "MMMM dd, yyyy 'at' h:mm a") : "N/A"}
             </p>
           </div>
         </div>
@@ -207,12 +207,12 @@ export default function OrderDetailsPage() {
               <div>
                 <span className="text-muted-foreground">Total Amount:</span>
                 <p className="font-medium text-lg">
-                  ${order.total || order.totalPrice || 0}
+                  ${order.totalPrice || 0}
                 </p>
               </div>
               <div>
                 <span className="text-muted-foreground">Items:</span>
-                <p className="font-medium">{order.itemCount || order.quantity || 0}</p>
+                <p className="font-medium">{order.quantity || 0}</p>
               </div>
             </div>
           </CardContent>
@@ -227,19 +227,19 @@ export default function OrderDetailsPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {order.shipping ? (
+            {order.clientID ? (
               <div className="space-y-2 text-sm">
                 <div>
                   <span className="text-muted-foreground">Name:</span>
-                  <p className="font-medium">{order.shipping.name}</p>
+                  <p className="font-medium">{order.clientID.name}</p>
                 </div>
                 <div>
                   <span className="text-muted-foreground">Email:</span>
-                  <p className="font-medium">{order.shipping.email || "N/A"}</p>
+                  <p className="font-medium">{order.clientID.email || "N/A"}</p>
                 </div>
                 <div>
                   <span className="text-muted-foreground">Phone:</span>
-                  <p className="font-medium">{order.shipping.phone || "N/A"}</p>
+                  <p className="font-medium">N/A</p>
                 </div>
               </div>
             ) : (
@@ -257,19 +257,12 @@ export default function OrderDetailsPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {order.shipping ? (
-              <div className="text-sm space-y-1">
-                <p className="font-medium">{order.shipping.name}</p>
-                <p>{order.shipping.address}</p>
-                <p>{order.shipping.city}, {order.shipping.state} {order.shipping.zip}</p>
-                <p>{order.shipping.country}</p>
-                {order.shipping.phone && (
-                  <p className="text-muted-foreground">{order.shipping.phone}</p>
-                )}
-              </div>
-            ) : (
-              <p className="text-muted-foreground">No shipping address available</p>
-            )}
+            <div className="text-sm space-y-1">
+              <p className="font-medium">{order.clientID?.name || "N/A"}</p>
+              <p>Address not available</p>
+              <p>City, State ZIP not available</p>
+              <p>Country not available</p>
+            </div>
           </CardContent>
         </Card>
 
@@ -351,17 +344,17 @@ export default function OrderDetailsPage() {
       </div>
 
       {/* Products */}
-      {order.products && order.products.length > 0 && (
+      {order.productID && order.productID.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center">
               <Package className="mr-2 h-5 w-5" />
-              Products ({order.products.length})
+              Products ({order.productID.length})
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {order.products.map((product: any, index: number) => (
+              {order.productID.map((product: any, index: number) => (
                 <div key={index} className="flex items-center space-x-4 p-4 border rounded-lg">
                   <div className="w-16 h-16 bg-muted rounded-lg flex items-center justify-center">
                     {product.image ? (

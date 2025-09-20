@@ -5,6 +5,7 @@ import Providers from "./providers";
 import Script from "next/script";
 
 import FaviconLoader from "@/components/favicon/FaviconLoader";
+import { Toaster } from "@/components/ui/toaster";
 
 export const metadata: Metadata = {
   title: "Shopper",
@@ -39,6 +40,7 @@ export default function RootLayout({
         <Providers>
           <FaviconLoader />
           {children}
+          <Toaster />
         </Providers>
       </body>
     </html>

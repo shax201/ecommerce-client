@@ -73,7 +73,7 @@ export default function EditOrderPage() {
 
     try {
       await updateOrder({
-        orderId: order._id,
+        id: order._id,
         data: {
           status: formData.status,
           trackingNumber: formData.trackingNumber,
@@ -130,7 +130,7 @@ export default function EditOrderPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
-          <Link href={`/orders/${order._id}`}>
+          <Link href={`/admin/orders/${order._id}`}>
             <Button variant="outline" size="sm">
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back to Order
@@ -238,7 +238,7 @@ export default function EditOrderPage() {
                 <Label htmlFor="totalAmount">Total Amount</Label>
                 <Input
                   id="totalAmount"
-                  value={`$${order.total || order.totalPrice || 0}`}
+                  value={`$${order.totalPrice || 0}`}
                   disabled
                   className="bg-muted"
                 />
@@ -255,12 +255,12 @@ export default function EditOrderPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {order.shipping ? (
+              {order.clientID ? (
                 <>
                   <div>
                     <Label>Customer Name</Label>
                     <Input
-                      value={order.shipping.name}
+                      value={order.clientID.name}
                       disabled
                       className="bg-muted"
                     />
@@ -268,7 +268,7 @@ export default function EditOrderPage() {
                   <div>
                     <Label>Email</Label>
                     <Input
-                      value={order.shipping.email || ""}
+                      value={order.clientID.email || ""}
                       disabled
                       className="bg-muted"
                     />
@@ -276,7 +276,7 @@ export default function EditOrderPage() {
                   <div>
                     <Label>Phone</Label>
                     <Input
-                      value={order.shipping.phone || ""}
+                      value=""
                       disabled
                       className="bg-muted"
                     />
@@ -297,56 +297,57 @@ export default function EditOrderPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {order.shipping ? (
-                <div className="space-y-4">
+              <div className="space-y-4">
+                <div>
+                  <Label>Address</Label>
+                  <Input
+                    value=""
+                    disabled
+                    className="bg-muted"
+                    placeholder="Address not available"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label>Address</Label>
+                    <Label>City</Label>
                     <Input
-                      value={order.shipping.address}
+                      value=""
                       disabled
                       className="bg-muted"
+                      placeholder="City not available"
                     />
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label>City</Label>
-                      <Input
-                        value={order.shipping.city}
-                        disabled
-                        className="bg-muted"
-                      />
-                    </div>
-                    <div>
-                      <Label>State</Label>
-                      <Input
-                        value={order.shipping.state}
-                        disabled
-                        className="bg-muted"
-                      />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label>ZIP Code</Label>
-                      <Input
-                        value={order.shipping.zip}
-                        disabled
-                        className="bg-muted"
-                      />
-                    </div>
-                    <div>
-                      <Label>Country</Label>
-                      <Input
-                        value={order.shipping.country}
-                        disabled
-                        className="bg-muted"
-                      />
-                    </div>
+                  <div>
+                    <Label>State</Label>
+                    <Input
+                      value=""
+                      disabled
+                      className="bg-muted"
+                      placeholder="State not available"
+                    />
                   </div>
                 </div>
-              ) : (
-                <p className="text-muted-foreground">No shipping address available</p>
-              )}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>ZIP Code</Label>
+                    <Input
+                      value=""
+                      disabled
+                      className="bg-muted"
+                      placeholder="ZIP not available"
+                    />
+                  </div>
+                  <div>
+                    <Label>Country</Label>
+                    <Input
+                      value=""
+                      disabled
+                      className="bg-muted"
+                      placeholder="Country not available"
+                    />
+                  </div>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </div>
