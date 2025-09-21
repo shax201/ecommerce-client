@@ -1,21 +1,18 @@
-import ProductDetails from "./ProductDetails";
-import { getSingleProduct } from "@/actions/products";
-import { notFound } from "next/navigation";
+"use client";
 
-export default async function ProductPage(props: {
-  params: Promise<{ slug: string[] }>;
-}) {
-  const params = await props.params;
+import ProductDetails from "./ProductDetails";
+import { notFound } from "next/navigation";
+import { useParams } from "next/navigation";
+
+export default function ProductPage() {
+  const params = useParams() as { slug: string[] };
   const productId = params.slug[0];
 
-  // Fetch product at build time
-  const product = await getSingleProduct(productId);
-
-  if (!product) {
+  if (!productId) {
     notFound();
   }
 
   return (
-    <ProductDetails id={productId} initialProduct={product} />
+    <ProductDetails id={productId} />
   );
 }

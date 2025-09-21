@@ -6,7 +6,7 @@ export interface CategoryData {
     createdAt: string
     updatedAt: string
     __v: number
-    productCount: number
+    productCount?: number
   }
 
 export interface CategoryWithSubCategories extends CategoryData {

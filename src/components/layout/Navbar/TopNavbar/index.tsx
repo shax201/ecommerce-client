@@ -26,6 +26,15 @@ import {
 } from "@/hooks/use-dynamic-menus";
 import { Logo } from "@/hooks/use-logo";
 import { useNavbarISR } from "@/hooks/use-navbar-isr";
+import {
+  useGetNavbarQuery,
+} from "@/lib/features/navbar";
+import {
+  useGetActiveDynamicMenusQuery,
+} from "@/lib/features/dynamic-menus";
+import {
+  useGetLogosQuery,
+} from "@/lib/features/logos";
 
 // Props interface
 interface TopNavbarProps {
@@ -135,17 +144,75 @@ const TopNavbar = ({ dynamicMenus, logo }: TopNavbarProps) => {
   const dispatch = useDispatch();
   
   // Get auth state from Redux
-  const { user, isAuthenticated } = useSelector((state: RootState) => state.auth);
+  const authState = useSelector((state: RootState) => (state as any).auth);
+  const { user, isAuthenticated } = authState || { user: null, isAuthenticated: false };
   
-  // Use the custom ISR hook for better organization
-  const { menusData, logoData, isLoading, hasError, dataSource } = useNavbarISR(
-    { dynamicMenus, logo }
-  );
+  // Use Redux RTK Query hooks directly - Always call on client side
+  const {
+    data: navbarData,
+    isLoading: navbarLoading,
+    error: navbarError,
+    refetch: refetchNavbar,
+  } = useGetNavbarQuery();
+
+  const {
+    data: dynamicMenusData,
+    isLoading: dynamicMenusLoading,
+    error: dynamicMenusError,
+    refetch: refetchDynamicMenus,
+  } = useGetActiveDynamicMenusQuery();
+
+  const {
+    data: logoData,
+    isLoading: logoLoading,
+    error: logoError,
+    refetch: refetchLogos,
+  } = useGetLogosQuery();
+
+  // Debug logging for client-side API calls
+  console.log("🔍 Client-side API Debug:", {
+    navbarData: navbarData?.data,
+    navbarLoading,
+    navbarError,
+    dynamicMenusData: dynamicMenusData?.data,
+    dynamicMenusLoading,
+    dynamicMenusError,
+    logoData: logoData?.data,
+    logoLoading,
+    logoError,
+    // Network status
+    networkStatus: {
+      navbar: navbarData ? "success" : navbarError ? "error" : "loading",
+      dynamicMenus: dynamicMenusData ? "success" : dynamicMenusError ? "error" : "loading",
+      logos: logoData ? "success" : logoError ? "error" : "loading",
+    },
+    // Request URLs (for debugging)
+    requestUrls: {
+      navbar: "/content/navbar",
+      dynamicMenus: "/content/dynamic-menus?isActive=true",
+      logos: "/content/logos",
+    },
+  });
+
+  // Determine which data to use (server props take priority)
+  const finalMenusData = dynamicMenus || dynamicMenusData?.data || [];
+  
+  // Filter logo data to get the main logo
+  const mainLogo = logoData?.data?.find((logo: any) => logo.type === 'main' && logo.isActive);
+  const finalLogoData = logo || mainLogo || null;
+  
+  const finalNavbarData = navbarData?.data || null;
+
+  // Combined loading state
+  const isLoading = navbarLoading || dynamicMenusLoading || logoLoading;
+  
+  // Combined error state
+  const hasError = navbarError || dynamicMenusError || logoError;
 
   // Convert dynamic menus to NavMenu format or use fallback
   const menuData =
-    menusData.length > 0
-      ? convertDynamicMenuToNavMenu(menusData)
+    finalMenusData.length > 0
+      ? convertDynamicMenuToNavMenu(finalMenusData)
       : fallbackData;
 
   // Initialize auth state on component mount
@@ -153,25 +220,42 @@ const TopNavbar = ({ dynamicMenus, logo }: TopNavbarProps) => {
     dispatch(initializeAuth());
   }, [dispatch]);
 
+  // Force refetch API calls on client side (for debugging)
+  useEffect(() => {
+    console.log("🔄 Triggering client-side API calls...");
+    refetchNavbar();
+    refetchDynamicMenus();
+    refetchLogos();
+  }, [refetchNavbar, refetchDynamicMenus, refetchLogos]);
+
   // Debug logging (only in development)
   if (process.env.NODE_ENV === "development") {
-    console.log("🔍 TopNavbar ISR Debug:", {
+    console.log("🔍 TopNavbar Redux Debug:", {
       isLoading,
       hasError,
-      menusCount: menusData.length,
+      menusCount: finalMenusData.length,
       menuDataCount: menuData.length,
-      usingFallback: menusData.length === 0,
-      dataSource,
-      hasLogoData: !!logoData,
-      performanceMetrics: {
-        hasServerData: dataSource.menusFromServer || dataSource.logoFromServer,
-        dataCompleteness: {
-          hasMenus: menusData.length > 0,
-          hasLogo: !!logoData,
-        },
+      usingFallback: finalMenusData.length === 0,
+      hasServerData: {
+        dynamicMenus: dynamicMenus !== undefined,
+        logo: logo !== undefined,
       },
+      hasClientData: {
+        navbar: !!navbarData?.data,
+        dynamicMenus: !!dynamicMenusData?.data,
+        logo: !!logoData?.data,
+      },
+      hasLogoData: !!finalLogoData,
     });
   }
+
+  // Manual API trigger function for testing
+  const handleManualRefresh = () => {
+    console.log("🔄 Manual refresh triggered");
+    refetchNavbar();
+    refetchDynamicMenus();
+    refetchLogos();
+  };
 
   return (
     <nav className="sticky top-0 bg-white z-30">
@@ -181,9 +265,9 @@ const TopNavbar = ({ dynamicMenus, logo }: TopNavbarProps) => {
             <ResTopNavbar data={menuData} />
           </div>
           <Link href="/" className="mr-3 lg:mr-10">
-            {isLoading && !logoData ? (
+            {isLoading && !finalLogoData ? (
               <div className="animate-pulse bg-gray-200 h-8 w-32 rounded"></div>
-            ) : hasError && !logoData ? (
+            ) : hasError && !finalLogoData ? (
               <span
                 className={cn([
                   integralCF.className,
@@ -192,10 +276,10 @@ const TopNavbar = ({ dynamicMenus, logo }: TopNavbarProps) => {
               >
                 CodeZyne
               </span>
-            ) : logoData ? (
+            ) : finalLogoData ? (
               <Image
-                src={logoData.url}
-                alt={logoData.altText}
+                src={finalLogoData.url}
+                alt={finalLogoData.altText}
                 width={100}
                 height={100}
                 // className="h-8 lg:h-10 w-auto object-contain"
@@ -270,6 +354,8 @@ const TopNavbar = ({ dynamicMenus, logo }: TopNavbarProps) => {
           </Link>
           <CartBtn />
           <UserDropdown user={user} isAuthenticated={isAuthenticated} />
+          
+
         </div>
       </div>
     </nav>

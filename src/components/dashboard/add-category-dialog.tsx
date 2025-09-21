@@ -17,7 +17,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "sonner"
-import { createCategory, updateCategory } from "@/actions/category"
+import { useCreateCategoryMutation, useUpdateCategoryMutation } from "@/lib/features/categories"
 import { CategoryData } from "@/app/admin/categories/categroy.interface"
 
 interface AddCategoryDialogProps {
@@ -40,7 +40,12 @@ export function AddCategoryDialog({
     description: "",
     parentCategory: "",
   })
-  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // Redux RTK Query hooks
+  const [createCategory, { isLoading: isCreating }] = useCreateCategoryMutation()
+  const [updateCategory, { isLoading: isUpdating }] = useUpdateCategoryMutation()
+  
+  const isSubmitting = isCreating || isUpdating
 
   // Populate form data when editing
   useEffect(() => {
@@ -62,21 +67,24 @@ export function AddCategoryDialog({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setIsSubmitting(true)
 
     try {
-      // Convert "none" back to empty string for server
+      // Convert form data to API format
       const submitData = {
-        ...formData,
-        parentCategory: formData.parentCategory === "none" ? "" : formData.parentCategory
+        title: formData.name,
+        description: formData.description,
+        parent: formData.parentCategory === "none" ? null : formData.parentCategory || null
       }
 
       let result
 
       if (editMode && categoryToEdit) {
-        result = await updateCategory(categoryToEdit._id, submitData)
+        result = await updateCategory({
+          id: categoryToEdit._id,
+          data: submitData
+        }).unwrap()
       } else {
-        result = await createCategory(submitData)
+        result = await createCategory(submitData).unwrap()
       }
 
       if (result.success) {
@@ -96,12 +104,11 @@ export function AddCategoryDialog({
           description: result.message,
         })
       }
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Category operation failed:', error)
       toast.error("An error occurred", {
-        description: "Please try again later.",
+        description: error?.data?.message || "Please try again later.",
       })
-    } finally {
-      setIsSubmitting(false)
     }
   }
 

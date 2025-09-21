@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label"
 import { SimpleEditor } from "@/components/text-editor/tiptap-templates/simple/simple-editor"
 import { useActionState } from "react"
-import { createProduct } from "./products-data"
+import { useCreateProductMutation, useUpdateProductMutation } from "@/lib/features/products/productApi"
 import { fetchCategories } from "../categories/categories-data"
 import { CategoryData } from "../categories/categroy.interface"
 import { useGetColorsQuery, useGetSizesQuery, ColorData, SizeData } from "@/lib/features/attributes"
@@ -30,6 +30,8 @@ const productSchema = z.object({
   videoLink: z.string().url().optional().or(z.literal("")),
   category: z.string().min(1, "Category is required"),
   description: z.string().min(10, "Description is required"),
+  color: z.array(z.string()).optional(),
+  size: z.array(z.string()).optional(),
 })
 
 type ProductFormValues = z.infer<typeof productSchema>
@@ -40,6 +42,7 @@ type ProductFormProps = {
   mode: "add" | "edit"
   initialValues?: Partial<ProductFormValues>
   mockProduct?: ProductFormValues
+  productId?: string
 }
 
 const initialSteps = [
@@ -50,7 +53,7 @@ const initialSteps = [
   { label: "Description", done: false },
 ]
 
-export default function ProductForm({ mode, initialValues, mockProduct }: ProductFormProps) {
+export default function ProductForm({ mode, initialValues, mockProduct, productId }: ProductFormProps) {
   const [steps, setSteps] = useState(initialSteps)
   const [primaryImagePreview, setPrimaryImagePreview] = useState<string | null>(null)
   const [optionalImagePreview, setOptionalImagePreview] = useState<string | null>(null)
@@ -86,6 +89,10 @@ export default function ProductForm({ mode, initialValues, mockProduct }: Produc
   // Redux queries for colors and sizes
   const { data: colorsResponse, isLoading: colorsLoading } = useGetColorsQuery()
   const { data: sizesResponse, isLoading: sizesLoading } = useGetSizesQuery()
+  
+  // Redux mutations for creating and updating products
+  const [createProduct, { isLoading: isCreatingProduct }] = useCreateProductMutation()
+  const [updateProduct, { isLoading: isUpdatingProduct }] = useUpdateProductMutation()
   
   const colors = colorsResponse?.data || []
   const sizes = sizesResponse?.data || []
@@ -142,6 +149,24 @@ export default function ProductForm({ mode, initialValues, mockProduct }: Produc
     setDescription(initialDescription)
     setSelectedCategory(initialCategory) // Initialize selectedCategory
     
+    // Initialize colors and sizes for edit mode
+    if (mode === "edit" && (defaultVals as any).color) {
+      setSelectedColors(Array.isArray((defaultVals as any).color) ? (defaultVals as any).color : [])
+    }
+    if (mode === "edit" && (defaultVals as any).size) {
+      setSelectedSizes(Array.isArray((defaultVals as any).size) ? (defaultVals as any).size : [])
+    }
+    
+    // Set primary image URL for edit mode
+    if (mode === "edit" && defaultVals.primaryImage) {
+      setPrimaryImageUrl(defaultVals.primaryImage)
+    }
+    
+    // Set optional images for edit mode
+    if (mode === "edit" && defaultVals.optionalImage) {
+      setOptionalImages(Array.isArray(defaultVals.optionalImage) ? defaultVals.optionalImage : [])
+    }
+    
     // Update steps based on prefilled data
     updateSteps(initialFormValues, initialCategory, initialDescription)
   }, [mode, initialValues, mockProduct])
@@ -185,11 +210,27 @@ export default function ProductForm({ mode, initialValues, mockProduct }: Produc
     // Debug: Log the payload to see what's being sent
     console.log("Product payload:", payload)
 
-    const result = await createProduct(payload)
-    if (result) {
-      return { success: true, error: undefined }
-    } else {
-      return { error: "Failed to create product.", success: false }
+    try {
+      let result
+      if (mode === "edit" && productId) {
+        // Update existing product
+        result = await updateProduct({ id: productId, data: payload }).unwrap()
+      } else {
+        // Create new product
+        result = await createProduct(payload).unwrap()
+      }
+      
+      if (result.success) {
+        return { success: true, error: undefined }
+      } else {
+        return { error: result.message || `Failed to ${mode} product.`, success: false }
+      }
+    } catch (error: any) {
+      console.error(`Error ${mode === "edit" ? "updating" : "creating"} product:`, error)
+      return { 
+        error: error?.data?.message || error?.message || `Failed to ${mode} product.`, 
+        success: false 
+      }
     }
   }
 
@@ -370,11 +411,11 @@ export default function ProductForm({ mode, initialValues, mockProduct }: Produc
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="w-full">
             <Label htmlFor="primaryImageUrl">Primary Image URL</Label>
-            <Input id="primaryImageUrl" name="primaryImageUrl" type="url" placeholder="https://..." onChange={handlePrimaryImageUrlChange} className="w-full" />
+            <Input id="primaryImageUrl" name="primaryImageUrl" type="url" placeholder="https://..." value={primaryImageUrl} onChange={handlePrimaryImageUrlChange} className="w-full" />
           </div>
           <div className="w-full">
             <Label htmlFor="optionalImages">Optional Images URLs (comma separated)</Label>
-            <Input id="optionalImages" name="optionalImages" type="text" placeholder="https://img1.jpg, https://img2.jpg" onChange={handleOptionalImagesChange} className="w-full" />
+            <Input id="optionalImages" name="optionalImages" type="text" placeholder="https://img1.jpg, https://img2.jpg" value={optionalImages.join(", ")} onChange={handleOptionalImagesChange} className="w-full" />
           </div>
         </div>
 
@@ -613,8 +654,8 @@ export default function ProductForm({ mode, initialValues, mockProduct }: Produc
         )}
 
         {/* Submit Button */}
-        <Button type="submit" className="w-full" disabled={isPending}>
-          {isPending ? (mode === "add" ? "Adding..." : "Updating...") : (mode === "add" ? "Add Product" : "Update Product")}
+        <Button type="submit" className="w-full" disabled={isPending || isCreatingProduct || isUpdatingProduct}>
+          {(isPending || isCreatingProduct || isUpdatingProduct) ? (mode === "add" ? "Adding..." : "Updating...") : (mode === "add" ? "Add Product" : "Update Product")}
         </Button>
       </form>
     </div>

@@ -73,6 +73,32 @@ export const logosApi = apiSlice.injectEndpoints({
       },
     }),
 
+    // Get active logos by type
+    getActiveLogosByType: builder.query<LogosResponse, string>({
+      query: (type) => `/content/logos/active/${type}`,
+      providesTags: ['Logo'],
+      transformResponse: (response: any) => {
+        if (response.success && response.data) {
+          return {
+            success: true,
+            data: response.data.map((logo: any) => ({
+              id: logo._id || logo.id,
+              name: logo.name,
+              description: logo.description,
+              url: logo.url,
+              altText: logo.altText,
+              type: logo.type,
+              isActive: logo.isActive,
+              createdAt: logo.createdAt,
+              updatedAt: logo.updatedAt
+            })),
+            message: response.message
+          };
+        }
+        return { success: false, data: [], message: 'Failed to fetch logos by type' };
+      },
+    }),
+
     // Get single logo by ID
     getLogoById: builder.query<LogoResponse, string>({
       query: (id) => `/content/logos/${id}`,
@@ -209,6 +235,7 @@ export const logosApi = apiSlice.injectEndpoints({
 // Export hooks for usage in functional components
 export const {
   useGetLogosQuery,
+  useGetActiveLogosByTypeQuery,
   useGetLogoByIdQuery,
   useCreateLogoMutation,
   useUpdateLogoMutation,

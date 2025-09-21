@@ -97,3 +97,10 @@ export const selectActiveLogos = (state: { logos: LogosState }) =>
   state.logos.logos.filter(logo => logo.isActive);
 export const selectLogosByType = (state: { logos: LogosState }, type: 'main' | 'footer' | 'favicon') => 
   state.logos.logos.filter(logo => logo.type === type);
+
+// Favicon-specific selectors
+export const selectFavicon = (state: { logos: LogosState }) => 
+  state.logos.logos.find(logo => logo.type === 'favicon' && logo.isActive);
+
+export const selectFaviconLoading = (state: { logos: LogosState }) => state.logos.loading;
+export const selectFaviconError = (state: { logos: LogosState }) => state.logos.error;

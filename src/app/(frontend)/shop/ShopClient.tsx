@@ -17,6 +17,33 @@ import ProductCard from "@/components/common/ProductCard";
 import ProductCardSkeleton from "@/components/common/Skeleton";
 import { useReduxProducts } from "@/hooks/useReduxProducts";
 import { useRouter, useSearchParams } from "next/navigation";
+import { Product } from "@/types/product.types";
+
+// Transform ProductData to Product type
+const transformProductData = (productData: any): Product => {
+  return {
+    id: parseInt(productData._id) || 0,
+    title: productData.title || "",
+    description: productData.description || "",
+    primaryImage: productData.primaryImage || "",
+    optionalImages: productData.optionalImages || [],
+    regularPrice: productData.regularPrice || 0,
+    discountPrice: productData.discountPrice || 0,
+    price: productData.regularPrice || 0, // Use regularPrice as base price
+    discount: {
+      amount: productData.discountPrice ? productData.regularPrice - productData.discountPrice : 0,
+      percentage: productData.discountPrice ? Math.round(((productData.regularPrice - productData.discountPrice) / productData.regularPrice) * 100) : 0
+    },
+    rating: 4.5, // Default rating since it's not in ProductData
+    catagory: productData.catagory || [],
+    variants: {
+      color: productData.color?.map((c: string) => ({ name: c, code: c })) || [],
+      size: productData.size || []
+    },
+    colors: productData.color?.map((c: string, index: number) => ({ id: index.toString(), name: c, code: c })) || [],
+    sizes: productData.size?.map((s: string, index: number) => ({ id: index.toString(), size: s })) || []
+  };
+};
 
 interface ShopClientProps {
   initialProducts: any[];
@@ -214,7 +241,7 @@ export default function ShopClient({
               ) : (
                 <>
                   {products.map((product) => (
-                    <ProductCard key={product.id} data={product} />
+                    <ProductCard key={product._id} data={transformProductData(product)} />
                   ))}
                 </>
               )}

@@ -12,6 +12,16 @@ export interface CategoryResponse {
   data?: any;
 }
 
+// Note: These server actions are now primarily used for server-side operations
+// For client-side operations, use the Redux RTK Query mutations instead:
+// - useCreateCategoryMutation
+// - useUpdateCategoryMutation
+// - useDeleteCategoryMutation
+
+// DEPRECATED: Use Redux RTK Query hooks instead
+// Import and use these hooks in your components:
+// import { useCreateCategoryMutation, useUpdateCategoryMutation, useDeleteCategoryMutation } from '@/lib/features/categories'
+
 export async function createCategory(
   formData: CategoryFormData
 ): Promise<CategoryResponse> {

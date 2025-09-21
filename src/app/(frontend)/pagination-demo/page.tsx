@@ -5,6 +5,7 @@ import { useGetProductsQuery } from "@/lib/features/products/productApi";
 import ProductPagination, { CompactPagination } from "@/components/common/ProductPagination";
 import ProductCard from "@/components/common/ProductCard";
 import ProductCardSkeleton from "@/components/common/Skeleton";
+import { Product } from "@/types/product.types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +18,32 @@ import {
   ArrowUpDown,
   RefreshCw
 } from "lucide-react";
+
+// Transform ProductData to Product type
+const transformProductData = (productData: any): Product => {
+  return {
+    id: parseInt(productData._id) || 0,
+    title: productData.title || "",
+    description: productData.description || "",
+    primaryImage: productData.primaryImage || "",
+    optionalImages: productData.optionalImages || [],
+    regularPrice: productData.regularPrice || 0,
+    discountPrice: productData.discountPrice || 0,
+    price: productData.regularPrice || 0, // Use regularPrice as base price
+    discount: {
+      amount: productData.discountPrice ? productData.regularPrice - productData.discountPrice : 0,
+      percentage: productData.discountPrice ? Math.round(((productData.regularPrice - productData.discountPrice) / productData.regularPrice) * 100) : 0
+    },
+    rating: 4.5, // Default rating since it's not in ProductData
+    catagory: productData.catagory || [],
+    variants: {
+      color: productData.color?.map((c: string) => ({ name: c, code: c })) || [],
+      size: productData.size || []
+    },
+    colors: productData.color?.map((c: string, index: number) => ({ id: index.toString(), name: c, code: c })) || [],
+    sizes: productData.size?.map((s: string, index: number) => ({ id: index.toString(), size: s })) || []
+  };
+};
 
 /**
  * Pagination Demo Page
@@ -198,7 +225,7 @@ export default function PaginationDemoPage() {
                     </div>
                   ) : (
                     products.map((product) => (
-                      <ProductCard key={product.id} data={product} />
+                      <ProductCard key={product._id} data={transformProductData(product)} />
                     ))
                   )}
                 </div>
@@ -245,7 +272,7 @@ export default function PaginationDemoPage() {
                     </div>
                   ) : (
                     products.map((product) => (
-                      <ProductCard key={product.id} data={product} />
+                      <ProductCard key={product._id} data={transformProductData(product)} />
                     ))
                   )}
                 </div>
@@ -328,7 +355,7 @@ export default function PaginationDemoPage() {
                     </div>
                   ) : (
                     products.map((product) => (
-                      <ProductCard key={product.id} data={product} />
+                      <ProductCard key={product._id} data={transformProductData(product)} />
                     ))
                   )}
                 </div>

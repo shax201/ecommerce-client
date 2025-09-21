@@ -72,6 +72,6 @@ const baseQueryWithReauth: BaseQueryFn<
 
 export const apiSlice = createApi({
   baseQuery: baseQueryWithReauth,
-  tagTypes: ["Product", "Category", "ShippingAddress", "Order", "OrderAnalytics", "Coupon", "Report", "ReportTemplate", "SalesReport", "OrdersReport", "ProductsReport", "CustomersReport", "InventoryReport", "CouponsReport", "AnalyticsReport", "FinancialReport", "Color", "Size", "Permission", "Role", "UserRole", "CurrentUserPermissions", "UserPermissions", "User", "Logo", "HeroSection", "UserSettings", "DynamicMenu", "ClientLogo", "Client", "ClientStats", "CourierCredentials", "CourierOperations", "CourierOrders", "CourierStats", "Orders"],
+  tagTypes: ["Product", "Category", "ShippingAddress", "Order", "OrderAnalytics", "Coupon", "Report", "ReportTemplate", "SalesReport", "OrdersReport", "ProductsReport", "CustomersReport", "InventoryReport", "CouponsReport", "AnalyticsReport", "FinancialReport", "Color", "Size", "Permission", "Role", "UserRole", "CurrentUserPermissions", "UserPermissions", "User", "Logo", "HeroSection", "UserSettings", "DynamicMenu", "ClientLogo", "Client", "ClientStats", "CourierCredentials", "CourierOperations", "CourierOrders", "CourierStats", "Orders", "Navbar"],
   endpoints: (builder) => ({}),
 });

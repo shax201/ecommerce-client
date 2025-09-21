@@ -1,9 +1,31 @@
 import { Product } from "@/types/product.types";
 import { apiSlice } from "../api/apiSlice";
 
+// Import ProductData from the admin products
+interface ProductData {
+  _id: string;
+  title: string;
+  description: string;
+  primaryImage: string;
+  optionalImages: string[];
+  regularPrice: number;
+  discountPrice: number;
+  videoLink?: string;
+  catagory: string[];
+  color?: string[];
+  size?: string[];
+  createdAt: string;
+  updatedAt: string;
+  __v: number;
+  variants?: {
+    color?: string[];
+    size?: string[];
+  };
+}
+
 // ===== INTERFACES =====
 interface ProductResponse {
-  data: Product[];
+  data: ProductData[];
   message: string;
   success: boolean;
   pagination?: {
@@ -23,7 +45,7 @@ interface ProductSingleResponse {
 }
 
 interface CategoryResponse {
-  data: Product[];
+  data: ProductData[];
   message: string;
   success: boolean;
 }
@@ -98,7 +120,7 @@ export const productsApi = apiSlice.injectEndpoints({
       providesTags: (result) =>
         result?.data
           ? [
-              ...result.data.map(({ id }) => ({ type: 'Product' as const, id })),
+              ...result.data.map(({ _id }) => ({ type: 'Product' as const, id: _id })),
               { type: 'Product', id: 'LIST' },
             ]
           : [{ type: 'Product', id: 'LIST' }],
@@ -138,7 +160,7 @@ export const productsApi = apiSlice.injectEndpoints({
       providesTags: (result) =>
         result?.data
           ? [
-              ...result.data.map(({ id }) => ({ type: 'Product' as const, id })),
+              ...result.data.map(({ _id }) => ({ type: 'Product' as const, id: _id })),
               { type: 'Product', id: 'LIST' },
             ]
           : [{ type: 'Product', id: 'LIST' }],
@@ -296,6 +318,109 @@ export const productsApi = apiSlice.injectEndpoints({
       }),
       invalidatesTags: [{ type: 'Product', id: 'LIST' }],
     }),
+
+    // ===== ADMIN MUTATIONS =====
+
+    // Create product (admin)
+    createProduct: builder.mutation<{ success: boolean; message: string; data?: any }, {
+      title: string;
+      sku?: string;
+      description: string;
+      primaryImage: string;
+      optionalImages: string[];
+      regularPrice: number;
+      discountPrice: number;
+      videoLink?: string;
+      catagory: string[];
+      color: string[];
+      size: string[];
+    }>({
+      query: (productData) => ({
+        url: `/products/create`,
+        method: "POST",
+        body: productData,
+      }),
+      invalidatesTags: [{ type: 'Product', id: 'LIST' }],
+    }),
+
+    // Update product (admin)
+    updateProduct: builder.mutation<{ success: boolean; message: string; data?: any }, {
+      id: string;
+      data: Partial<{
+        title: string;
+        sku?: string;
+        description: string;
+        primaryImage: string;
+        optionalImages: string[];
+        regularPrice: number;
+        discountPrice: number;
+        videoLink?: string;
+        catagory: string[];
+        color: string[];
+        size: string[];
+      }>;
+    }>({
+      query: ({ id, data }) => ({
+        url: `/products/${id}`,
+        method: "PUT",
+        body: data,
+      }),
+      invalidatesTags: (result, error, { id }) => [
+        { type: 'Product', id },
+        { type: 'Product', id: 'LIST' },
+      ],
+    }),
+
+    // Delete product (admin)
+    deleteProduct: builder.mutation<{ success: boolean; message: string }, string>({
+      query: (id) => ({
+        url: `/products/${id}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: (result, error, id) => [
+        { type: 'Product', id },
+        { type: 'Product', id: 'LIST' },
+      ],
+    }),
+
+    // Get product analytics (admin)
+    getProductAnalytics: builder.query<{
+      success: boolean;
+      data: {
+        totalProducts: number;
+        activeProducts: number;
+        lowStockProducts: number;
+        outOfStockProducts: number;
+        totalRevenue: number;
+        averageProductValue: number;
+        topSellingProducts: Array<{
+          productId: string;
+          productName: string;
+          sales: number;
+          revenue: number;
+          views: number;
+          conversionRate: number;
+        }>;
+        categoryPerformance: Array<{
+          categoryId: string;
+          categoryName: string;
+          productCount: number;
+          totalRevenue: number;
+          averageRating: number;
+        }>;
+        inventoryValue: number;
+        stockTurnover: number;
+        priceDistribution: {
+          under50: number;
+          between50and100: number;
+          between100and200: number;
+          over200: number;
+        };
+      };
+    }, void>({
+      query: () => `/products/analytics`,
+      providesTags: [{ type: 'Product', id: 'ANALYTICS' }],
+    }),
   }),
 });
 
@@ -318,4 +443,12 @@ export const {
   useRemoveFromWishlistMutation,
   useTrackProductViewMutation,
   usePurchaseProductMutation,
+  
+  // Admin Mutations
+  useCreateProductMutation,
+  useUpdateProductMutation,
+  useDeleteProductMutation,
+  
+  // Admin Queries
+  useGetProductAnalyticsQuery,
 } = productsApi;

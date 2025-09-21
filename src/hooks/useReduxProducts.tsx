@@ -261,7 +261,7 @@ export function useReduxProducts() {
 
   // ===== UTILITY FUNCTIONS =====
   const getProductById = useCallback((productId: string) => {
-    return products.find(product => product.id.toString() === productId);
+    return products.find(product => product._id.toString() === productId);
   }, [products]);
 
   const isProductInWishlist = useCallback((productId: string) => {

@@ -23,7 +23,7 @@ import {
   Users,
   Heart
 } from "lucide-react"
-import { getProductAnalytics, getTopSellingProducts } from "@/actions/products"
+import { useGetProductAnalyticsQuery, useGetTopSellingProductsQuery } from "@/lib/features/products/productApi"
 import { toast } from "sonner"
 
 interface ProductAnalytics {
@@ -59,30 +59,44 @@ interface ProductAnalytics {
 }
 
 export function ProductDashboard() {
-  const [analytics, setAnalytics] = React.useState<ProductAnalytics | null>(null)
-  const [topSelling, setTopSelling] = React.useState<any[]>([])
-  const [isLoading, setIsLoading] = React.useState(true)
   const [selectedPeriod, setSelectedPeriod] = React.useState("all")
 
+  // Redux queries for dashboard data
+  const {
+    data: analyticsResponse,
+    isLoading: analyticsLoading,
+    error: analyticsError,
+    refetch: refetchAnalytics,
+  } = useGetProductAnalyticsQuery()
+
+  const {
+    data: topSellingResponse,
+    isLoading: topSellingLoading,
+    error: topSellingError,
+    refetch: refetchTopSelling,
+  } = useGetTopSellingProductsQuery({ limit: 10 })
+
+  const analytics = analyticsResponse?.data || null
+  const topSelling = topSellingResponse?.data || []
+  const isLoading = analyticsLoading || topSellingLoading
+
+  // Handle errors
   React.useEffect(() => {
-    const loadDashboardData = async () => {
-      setIsLoading(true)
-      try {
-        const [analyticsData, topSellingData] = await Promise.all([
-          getProductAnalytics(),
-          getTopSellingProducts(10)
-        ])
-        setAnalytics(analyticsData)
-        setTopSelling(topSellingData)
-      } catch (error) {
-        console.error("Error loading dashboard data:", error)
-        toast.error("Failed to load dashboard data")
-      } finally {
-        setIsLoading(false)
-      }
+    if (analyticsError) {
+      console.error("Error loading analytics:", analyticsError)
+      toast.error("Failed to load analytics data")
     }
-    loadDashboardData()
-  }, [selectedPeriod])
+    if (topSellingError) {
+      console.error("Error loading top selling products:", topSellingError)
+      toast.error("Failed to load top selling products")
+    }
+  }, [analyticsError, topSellingError])
+
+  // Refetch data when period changes
+  React.useEffect(() => {
+    refetchAnalytics()
+    refetchTopSelling()
+  }, [selectedPeriod, refetchAnalytics, refetchTopSelling])
 
   if (isLoading) {
     return (
@@ -131,9 +145,17 @@ export function ProductDashboard() {
               <SelectItem value="year">This Year</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline" size="sm">
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => {
+              refetchAnalytics()
+              refetchTopSelling()
+            }}
+            disabled={isLoading}
+          >
             <Download className="h-4 w-4 mr-2" />
-            Export
+            {isLoading ? "Refreshing..." : "Refresh"}
           </Button>
           <Button size="sm">
             <Plus className="h-4 w-4 mr-2" />
@@ -313,31 +335,31 @@ export function ProductDashboard() {
             <CardContent>
               <div className="space-y-4">
                 {topSelling.map((product, index) => (
-                  <div key={product.productId} className="flex items-center justify-between p-4 border rounded-lg">
+                  <div key={product._id} className="flex items-center justify-between p-4 border rounded-lg">
                     <div className="flex items-center space-x-4">
                       <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center text-sm font-bold">
                         {index + 1}
                       </div>
                       <div>
-                        <p className="font-medium">{product.productName}</p>
+                        <p className="font-medium">{product.title}</p>
                         <div className="flex items-center space-x-4 text-sm text-muted-foreground">
                           <span className="flex items-center">
                             <Eye className="h-3 w-3 mr-1" />
-                            {product.views} views
+                            0 views
                           </span>
                           <span className="flex items-center">
                             <ShoppingCart className="h-3 w-3 mr-1" />
-                            {product.sales} sales
+                            0 sales
                           </span>
                           <span className="flex items-center">
                             <Star className="h-3 w-3 mr-1" />
-                            {product.conversionRate.toFixed(1)}% conversion
+                            0.0% conversion
                           </span>
                         </div>
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="font-bold">${product.revenue.toLocaleString()}</p>
+                      <p className="font-bold">$0</p>
                       <p className="text-sm text-muted-foreground">Revenue</p>
                     </div>
                   </div>

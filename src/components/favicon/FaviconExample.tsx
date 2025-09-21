@@ -1,7 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { useFavicon } from "@/hooks/use-favicon";
+import { useAppSelector } from "@/lib/store";
+import { useGetLogosQuery } from "@/lib/features/logos/logosApi";
+import { 
+  selectFavicon, 
+  selectFaviconLoading, 
+  selectFaviconError 
+} from "@/lib/features/logos/logosSlice";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -18,7 +24,16 @@ import { Loader2, Globe, Check, X } from "lucide-react";
  * This shows the current favicon and provides quick test options
  */
 export default function FaviconExample() {
-  const { favicon, loading, error } = useFavicon();
+  // Redux selectors
+  const favicon = useAppSelector(selectFavicon);
+  const loading = useAppSelector(selectFaviconLoading);
+  const error = useAppSelector(selectFaviconError);
+  
+  // Fetch logos data
+  const { isLoading: logosLoading, error: logosError } = useGetLogosQuery();
+  
+  const isLoading = loading || logosLoading;
+  const hasError = error || (logosError ? 'Failed to fetch favicon' : null);
 
   // Predefined favicon options for quick testing
   const predefinedFavicons = [
@@ -52,7 +67,7 @@ export default function FaviconExample() {
     );
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <Card>
         <CardContent className="flex items-center justify-center p-6">
@@ -75,10 +90,10 @@ export default function FaviconExample() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {error && (
+        {hasError && (
           <Alert variant="destructive">
             <X className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
+            <AlertDescription>{hasError}</AlertDescription>
           </Alert>
         )}
 

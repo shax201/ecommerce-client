@@ -2,6 +2,31 @@
 
 import * as React from "react"
 import { useEffect } from "react"
+import { useAppSelector, useAppDispatch } from "@/lib/store"
+import {
+  useGetCategoriesQuery,
+  useCreateCategoryMutation,
+  useUpdateCategoryMutation,
+  useDeleteCategoryMutation,
+  useGetProductsByCategoryQuery,
+  useBulkDeleteCategoriesMutation,
+} from "@/lib/features/categories/categoriesApi"
+import {
+  selectAllCategories,
+  selectCategoriesLoading,
+  selectCategoriesError,
+  selectSelectedCategories,
+  selectParentCategories,
+  selectSubCategories,
+  setCategories,
+  setSelectedCategories,
+  toggleCategorySelection,
+  clearSelections,
+  addCategory,
+  updateCategory as updateCategoryAction,
+  removeCategory,
+  removeCategories,
+} from "@/lib/features/categories/categoriesSlice"
 import {
   ColumnDef,
   ColumnFiltersState,
@@ -68,9 +93,7 @@ import {
 } from "@/components/ui/dialog"
 import { AddCategoryDialog } from "@/components/dashboard/add-category-dialog"
 import { CategoriesSkeleton } from "./categories-skeleton"
-import { deleteCategory, fetchCategories, fetchProductsByCategory } from "./categories-data"
 import { CategoryData, CategoryWithSubCategories } from "./categroy.interface"
-import { updateCategory } from "@/actions/category"
 
 // Schema for category data
 const categorySchema = z.object({
@@ -81,11 +104,31 @@ const categorySchema = z.object({
   createdAt: z.string(),
   updatedAt: z.string(),
   __v: z.number(),
-  productCount: z.number(),
+  productCount: z.number().optional(),
 })
 
 export function CategoriesClient() {
-  const [data, setData] = React.useState<CategoryData[]>([])
+  const dispatch = useAppDispatch()
+  
+  // Redux selectors
+  const data = useAppSelector(selectAllCategories)
+  const loading = useAppSelector(selectCategoriesLoading)
+  const error = useAppSelector(selectCategoriesError)
+  const selectedCategories = useAppSelector(selectSelectedCategories)
+  
+  // RTK Query hooks
+  const { 
+    data: categoriesData, 
+    isLoading: categoriesLoading, 
+    error: categoriesError,
+    refetch: refetchCategories 
+  } = useGetCategoriesQuery()
+  
+  const [createCategory, { isLoading: isCreating }] = useCreateCategoryMutation()
+  const [updateCategory, { isLoading: isUpdating }] = useUpdateCategoryMutation()
+  const [deleteCategory, { isLoading: isDeleting }] = useDeleteCategoryMutation()
+  const [bulkDeleteCategories] = useBulkDeleteCategoriesMutation()
+
   const [rowSelection, setRowSelection] = React.useState({})
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
@@ -94,7 +137,6 @@ export function CategoriesClient() {
     pageIndex: 0,
     pageSize: 10,
   })
-  const [isLoading, setIsLoading] = React.useState(true)
 
   // Dialog states
   const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false)
@@ -104,13 +146,18 @@ export function CategoriesClient() {
   // Delete dialog states
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false)
   const [categoryToDelete, setCategoryToDelete] = React.useState<CategoryData | null>(null)
-  const [isDeleting, setIsDeleting] = React.useState(false)
   const [deleteWithSubCategories, setDeleteWithSubCategories] = React.useState<boolean | undefined>(undefined)
 
-  // Fetch data on component mount
+  // Combined loading and error states
+  const isLoading = loading || categoriesLoading || isCreating || isUpdating || isDeleting
+  const hasError = error || categoriesError
+
+  // Update Redux state when categories data changes
   useEffect(() => {
-    loadCategories()
-  }, [])
+    if (categoriesData?.success && categoriesData.data) {
+      dispatch(setCategories(categoriesData.data))
+    }
+  }, [categoriesData, dispatch])
 
   // Refresh categories when dialog closes
   const handleDialogClose = (open: boolean) => {
@@ -118,7 +165,7 @@ export function CategoriesClient() {
     if (!open) {
       setIsEditMode(false)
       setCategoryToEdit(null)
-      loadCategories()
+      refetchCategories()
     }
   }
 
@@ -151,56 +198,54 @@ export function CategoriesClient() {
     if (subCategories.length > 0 && deleteWithSubCategories === undefined) return
 
     try {
-      setIsDeleting(true)
-      
       const loadingToast = toast.loading("Deleting category...")
       
       if (subCategories.length > 0) {
         if (deleteWithSubCategories) {
           console.log(`Deleting ${subCategories.length} sub-categories first`)
           for (const subCategory of subCategories) {
-            await deleteCategory(subCategory._id)
+            await deleteCategory(subCategory._id).unwrap()
           }
         } else {
           console.log(`Updating ${subCategories.length} sub-categories to remove parent reference`)
           for (const subCategory of subCategories) {
-            await updateCategory(subCategory._id, {
-              name: subCategory.title,
-              description: subCategory.description,
-              parentCategory: undefined
-            })
+            await updateCategory({
+              id: subCategory._id,
+              data: {
+                title: subCategory.title,
+                description: subCategory.description,
+                parent: null
+              }
+            }).unwrap()
           }
         }
       }
       
-      const success = await deleteCategory(categoryToDelete._id)
-      if (success) {
-        await loadCategories()
-        setIsDeleteDialogOpen(false)
-        setCategoryToDelete(null)
-        setDeleteWithSubCategories(undefined)
-        
-        toast.dismiss(loadingToast)
-        toast.success("Category deleted successfully", {
-          description: subCategories.length > 0 
-            ? deleteWithSubCategories 
-              ? `Deleted category "${categoryToDelete.title}" and ${subCategories.length} sub-categor${subCategories.length === 1 ? 'y' : 'ies'}`
-              : `Deleted category "${categoryToDelete.title}" and preserved ${subCategories.length} sub-categor${subCategories.length === 1 ? 'y' : 'ies'}`
-            : `Deleted category "${categoryToDelete.title}"`
-        })
-      } else {
-        toast.dismiss(loadingToast)
-        toast.error("Failed to delete category", {
-          description: "Please try again later."
-        })
+      await deleteCategory(categoryToDelete._id).unwrap()
+      
+      // Update Redux state
+      dispatch(removeCategory(categoryToDelete._id))
+      if (subCategories.length > 0 && deleteWithSubCategories) {
+        dispatch(removeCategories(subCategories.map(cat => cat._id)))
       }
+      
+      setIsDeleteDialogOpen(false)
+      setCategoryToDelete(null)
+      setDeleteWithSubCategories(undefined)
+      
+      toast.dismiss(loadingToast)
+      toast.success("Category deleted successfully", {
+        description: subCategories.length > 0 
+          ? deleteWithSubCategories 
+            ? `Deleted category "${categoryToDelete.title}" and ${subCategories.length} sub-categor${subCategories.length === 1 ? 'y' : 'ies'}`
+            : `Deleted category "${categoryToDelete.title}" and preserved ${subCategories.length} sub-categor${subCategories.length === 1 ? 'y' : 'ies'}`
+          : `Deleted category "${categoryToDelete.title}"`
+      })
     } catch (error) {
       console.error("Error deleting category:", error)
       toast.error("Error deleting category", {
         description: "An unexpected error occurred. Please try again."
       })
-    } finally {
-      setIsDeleting(false)
     }
   }
 
@@ -212,53 +257,38 @@ export function CategoriesClient() {
   }
 
   // Handle bulk delete
-  const handleBulkDelete = () => {
+  const handleBulkDelete = async () => {
     const selectedRows = table.getFilteredSelectedRowModel().rows
-    const selectedCategories = selectedRows.map(row => row.original)
+    const selectedCategoryIds = selectedRows.map(row => row.original._id)
     
-    if (selectedCategories.length === 0) {
+    if (selectedCategoryIds.length === 0) {
       toast.error("No categories selected")
       return
     }
 
-    toast.promise(
-      new Promise((resolve) => {
-        setTimeout(() => {
-          setData(data.filter(category => !selectedCategories.find(selected => selected._id === category._id)))
-          setRowSelection({})
-          resolve(true)
-        }, 1000)
-      }),
-      {
-        loading: `Deleting ${selectedCategories.length} categor${selectedCategories.length === 1 ? 'y' : 'ies'}...`,
-        success: `Successfully deleted ${selectedCategories.length} categor${selectedCategories.length === 1 ? 'y' : 'ies'}`,
-        error: "Failed to delete categories",
-      }
-    )
+    try {
+      const loadingToast = toast.loading(`Deleting ${selectedCategoryIds.length} categor${selectedCategoryIds.length === 1 ? 'y' : 'ies'}...`)
+      
+      await bulkDeleteCategories(selectedCategoryIds).unwrap()
+      
+      // Update Redux state
+      dispatch(removeCategories(selectedCategoryIds))
+      dispatch(clearSelections())
+      setRowSelection({})
+      
+      toast.dismiss(loadingToast)
+      toast.success(`Successfully deleted ${selectedCategoryIds.length} categor${selectedCategoryIds.length === 1 ? 'y' : 'ies'}`)
+    } catch (error) {
+      console.error("Error bulk deleting categories:", error)
+      toast.error("Failed to delete categories", {
+        description: "Please try again later."
+      })
+    }
   }
 
-  // Function to load categories
-  const loadCategories = async () => {
-    try {
-      setIsLoading(true)
-      const categories = await fetchCategories()
-      
-      const categoriesWithProductCounts = await Promise.all(
-        categories.map(async (category: CategoryData) => {
-          const products = await fetchProductsByCategory(category._id)
-          return {
-            ...category,
-            productCount: products.length
-          }
-        })
-      )
-
-      setData(categoriesWithProductCounts)
-    } catch (error) {
-      console.error("Error loading categories:", error)
-    } finally {
-      setIsLoading(false)
-    }
+  // Helper function to get sub-categories using Redux selector
+  const getSubCategories = (categoryId: string) => {
+    return data.filter(cat => cat.parent === categoryId)
   }
 
   // Helper functions
@@ -272,9 +302,6 @@ export function CategoriesClient() {
     return parent?.title || ""
   }
 
-  const getSubCategories = (categoryId: string): CategoryData[] => {
-    return data.filter(cat => cat.parent === categoryId)
-  }
 
   const columns: ColumnDef<z.infer<typeof categorySchema>>[] = [
     {
@@ -354,7 +381,7 @@ export function CategoriesClient() {
       header: "Products",
       cell: ({ row }) => (
         <Badge variant="outline">
-          {row.original.productCount} {row.original.productCount === 1 ? 'product' : 'products'}
+          {row.original.productCount || 0} {(row.original.productCount || 0) === 1 ? 'product' : 'products'}
         </Badge>
       ),
     },
@@ -413,7 +440,14 @@ export function CategoriesClient() {
     },
     getRowId: (row) => row._id,
     enableRowSelection: true,
-    onRowSelectionChange: setRowSelection,
+    onRowSelectionChange: (updater) => {
+      const newSelection = typeof updater === 'function' ? updater(rowSelection) : updater
+      setRowSelection(newSelection)
+      
+      // Update Redux state
+      const selectedIds = Object.keys(newSelection).filter(key => newSelection[key])
+      dispatch(setSelectedCategories(selectedIds))
+    },
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     onColumnVisibilityChange: setColumnVisibility,
@@ -665,7 +699,7 @@ export function CategoriesClient() {
                 Are you sure you want to delete this category? This action cannot be undone.
               </p>
               
-              {categoryToDelete.productCount > 0 && (
+              {(categoryToDelete.productCount || 0) > 0 && (
                 <div className="mt-3 sm:mt-4 p-2 sm:p-3 bg-amber-50 border border-amber-200 rounded-md flex items-start gap-2">
                   <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-500 mt-0.5 flex-shrink-0">
                     <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path>
@@ -673,7 +707,7 @@ export function CategoriesClient() {
                     <path d="M12 17h.01"></path>
                   </svg>
                   <span className="text-xs sm:text-sm text-amber-800">
-                    This category contains <strong>{categoryToDelete.productCount}</strong> product{categoryToDelete.productCount === 1 ? '' : 's'}.
+                    This category contains <strong>{categoryToDelete.productCount || 0}</strong> product{(categoryToDelete.productCount || 0) === 1 ? '' : 's'}.
                   </span>
                 </div>
               )}

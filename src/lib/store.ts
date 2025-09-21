@@ -19,6 +19,8 @@ import { dynamicMenusReducer } from "./features/dynamic-menus";
 import { clientLogosReducer } from "./features/client-logos";
 import { clientReducer } from "./features/clients";
 import { courierReducer } from "./features/courier";
+import { categoriesReducer } from "./features/categories";
+import { navbarReducer } from "./features/navbar";
 import { apiSlice } from "./features/api/apiSlice";
 
 const persistConfig = {
@@ -46,6 +48,8 @@ const rootReducer = combineReducers({
   clientLogos: clientLogosReducer,
   clients: clientReducer,
   courier: courierReducer,
+  categories: categoriesReducer,
+  navbar: navbarReducer,
   [apiSlice.reducerPath]: apiSlice.reducer
 });
 const persistedReducer = persistReducer(persistConfig, rootReducer);
@@ -58,7 +62,7 @@ export const makeStore = () => {
       const middleware = getDefaultMiddleware({
         serializableCheck: false,
       });
-      return middleware.concat(apiSlice.middleware);
+      return middleware.concat(apiSlice.middleware) as any;
     },
   });
 

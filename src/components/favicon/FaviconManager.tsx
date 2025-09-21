@@ -1,22 +1,81 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useFavicon } from "@/hooks/use-favicon";
+import { useAppSelector } from "@/lib/store";
+import { 
+  useGetLogosQuery, 
+  useCreateLogoMutation, 
+  useUpdateLogoMutation 
+} from "@/lib/features/logos/logosApi";
+import { 
+  selectFavicon, 
+  selectFaviconLoading, 
+  selectFaviconError 
+} from "@/lib/features/logos/logosSlice";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, Upload, Check, X, Globe } from "lucide-react";
-import { logoService } from "@/lib/services/logo-service";
 import { toast } from "sonner";
 
 export default function FaviconManager() {
-  const { favicon, loading, error, updateFavicon } = useFavicon();
+  // Redux selectors
+  const favicon = useAppSelector(selectFavicon);
+  const loading = useAppSelector(selectFaviconLoading);
+  const error = useAppSelector(selectFaviconError);
+  
+  // RTK Query hooks
+  const { 
+    data: logosData, 
+    isLoading: logosLoading, 
+    error: logosError,
+    refetch: refetchLogos 
+  } = useGetLogosQuery();
+  
+  const [createLogo, { isLoading: isCreating }] = useCreateLogoMutation();
+  const [updateLogo, { isLoading: isUpdating }] = useUpdateLogoMutation();
+
   const [url, setUrl] = useState("");
   const [altText, setAltText] = useState("");
-  const [isUpdating, setIsUpdating] = useState(false);
   const [updateStatus, setUpdateStatus] = useState<"idle" | "success" | "error">("idle");
+
+  // Function to update the favicon in the DOM
+  const updateFaviconInDOM = (url: string, altText?: string) => {
+    // Remove existing favicon links
+    const existingFavicons = document.querySelectorAll('link[rel*="icon"]');
+    existingFavicons.forEach(link => link.remove());
+
+    // Create new favicon link
+    const link = document.createElement('link');
+    link.rel = 'icon';
+    link.href = url;
+    link.type = 'image/x-icon';
+    if (altText) {
+      link.setAttribute('alt', altText);
+    }
+    
+    document.head.appendChild(link);
+
+    // Also update apple-touch-icon for iOS devices
+    const appleTouchIcon = document.querySelector('link[rel="apple-touch-icon"]');
+    if (appleTouchIcon) {
+      appleTouchIcon.setAttribute('href', url);
+    } else {
+      const appleLink = document.createElement('link');
+      appleLink.rel = 'apple-touch-icon';
+      appleLink.href = url;
+      document.head.appendChild(appleLink);
+    }
+  };
+
+  // Update DOM when favicon changes
+  useEffect(() => {
+    if (favicon?.url) {
+      updateFaviconInDOM(favicon.url, favicon.altText);
+    }
+  }, [favicon]);
 
   const handleUpdate = async () => {
     if (!url.trim()) {
@@ -24,27 +83,29 @@ export default function FaviconManager() {
       return;
     }
 
-    setIsUpdating(true);
     setUpdateStatus("idle");
 
     try {
       if (favicon) {
         // Update existing favicon
-        await logoService.updateLogo(favicon._id, {
-          url: url.trim(),
-          altText: altText.trim() || favicon.altText,
-        });
+        await updateLogo({
+          id: favicon.id,
+          data: {
+            url: url.trim(),
+            altText: altText.trim() || favicon.altText,
+          }
+        }).unwrap();
         toast.success("Favicon updated successfully!");
       } else {
         // Create new favicon
-        await logoService.createLogo({
+        await createLogo({
           name: "Website Favicon",
           description: "Browser tab icon",
           url: url.trim(),
           altText: altText.trim() || "Website Favicon",
           type: "favicon",
           isActive: true,
-        });
+        }).unwrap();
         toast.success("Favicon created successfully!");
       }
       
@@ -52,13 +113,17 @@ export default function FaviconManager() {
       setUrl("");
       setAltText("");
       
+      // Refetch logos to update the store
+      refetchLogos();
+      
+      // Update DOM immediately
+      updateFaviconInDOM(url.trim(), altText.trim());
+      
       // Refresh the page to reload the favicon
       window.location.reload();
     } catch (err) {
       setUpdateStatus("error");
       toast.error("Failed to update favicon");
-    } finally {
-      setIsUpdating(false);
     }
   };
 
@@ -75,7 +140,10 @@ export default function FaviconManager() {
     }
   };
 
-  if (loading) {
+  const isLoading = loading || logosLoading || isCreating || isUpdating;
+  const hasError = error || (logosError ? 'Failed to fetch favicon' : null);
+
+  if (isLoading) {
     return (
       <Card>
         <CardContent className="flex items-center justify-center p-6">
@@ -98,10 +166,10 @@ export default function FaviconManager() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {error && (
+        {hasError && (
           <Alert variant="destructive">
             <X className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
+            <AlertDescription>{hasError}</AlertDescription>
           </Alert>
         )}
 
@@ -176,10 +244,10 @@ export default function FaviconManager() {
 
           <Button 
             onClick={handleUpdate} 
-            disabled={isUpdating || !url.trim()}
+            disabled={isLoading || !url.trim()}
             className="w-full"
           >
-            {isUpdating ? (
+            {isLoading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Updating...

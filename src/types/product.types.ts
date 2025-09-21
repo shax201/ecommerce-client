@@ -27,4 +27,14 @@ export type Product = {
   discount: Discount;
   rating: number;
   variants: Variants;
+  // New fields for colors and sizes
+  colors?: Array<{
+    id: string;
+    name: string;
+    code: string;
+  }>;
+  sizes?: Array<{
+    id: string;
+    size: string;
+  }>;
 };

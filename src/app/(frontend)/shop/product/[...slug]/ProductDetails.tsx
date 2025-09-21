@@ -5,20 +5,28 @@ import Header from "@/components/product-page/Header";
 import ProductDetailsSkeleton from "@/components/product-page/ProductDetailsSkeleton";
 import { Tabs } from "@radix-ui/react-tabs";
 import { notFound } from "next/navigation";
-import React, { FC, useEffect } from "react";
-import { useProductISR } from "@/hooks/use-product-isr";
+import React, { FC, useEffect, useMemo } from "react";
+import { useProductRedux } from "@/hooks/use-product-redux";
 
 interface IProductDetails {
   id: string;
-  initialProduct?: any;
 }
 
-const ProductDetails: FC<IProductDetails> = ({ id, initialProduct }) => {
-  const { product, loading, error, dataSource, performanceMetrics } =
-    useProductISR({
-      productId: id,
-      initialProduct,
-    });
+const ProductDetails: FC<IProductDetails> = ({ id }) => {
+  // Use Redux-based product hook
+  const { 
+    product: transformedProduct,
+    loading, 
+    error, 
+    isError,
+    isSuccess,
+    performanceMetrics,
+    dataSource,
+    refetch
+  } = useProductRedux({ 
+    productId: id,
+    skip: !id 
+  });
 
   // Scroll to top when component mounts
   useEffect(() => {
@@ -27,12 +35,15 @@ const ProductDetails: FC<IProductDetails> = ({ id, initialProduct }) => {
 
   // Debug logging (only in development)
   if (process.env.NODE_ENV === "development") {
-    console.log("🔍 Product ISR Debug:", {
+    console.log("🔍 Product Redux Debug:", {
       loading,
       error,
-      dataSource,
+      isError,
+      isSuccess,
+      hasProduct: !!transformedProduct,
       performanceMetrics,
-      hasProduct: !!product,
+      dataSource,
+      productId: id,
     });
   }
 
@@ -41,7 +52,7 @@ const ProductDetails: FC<IProductDetails> = ({ id, initialProduct }) => {
     return <ProductDetailsSkeleton />;
   }
 
-  if (!loading && (!product || error)) {
+  if (!loading && (!transformedProduct || isError)) {
     notFound(); // fallback if the product wasn't found
   }
 
@@ -49,11 +60,11 @@ const ProductDetails: FC<IProductDetails> = ({ id, initialProduct }) => {
     <main>
       <div className="max-w-frame mx-auto px-4 xl:px-0">
         <hr className="h-[1px] border-t-black/10 mb-5 sm:mb-6" />
-        {product && (
+        {transformedProduct && (
           <>
-            <BreadcrumbProduct title={product?.title ?? "product"} />
+            <BreadcrumbProduct title={transformedProduct?.title ?? "product"} />
             <section className="mb-11">
-              <Header data={product} />
+              <Header data={transformedProduct} />
             </section>
             <Tabs />
           </>

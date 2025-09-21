@@ -1,5 +1,6 @@
 export interface ProductData {
-  _id: string
+  _id?: string // Optional since backend transforms this
+  id?: string // Backend transforms _id to id
   title: string
   description: string
   primaryImage: string

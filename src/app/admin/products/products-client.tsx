@@ -70,8 +70,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { ProductsSkeleton } from "./products-skeleton"
-import { fetchProducts, deleteProduct } from "./products-data"
+import { useGetProductsQuery, useDeleteProductMutation } from "@/lib/features/products/productApi"
 import { ProductData } from "./product.interface"
+import { Product } from "@/types/product.types"
 
 // Schema for product data
 const productSchema = z.object({
@@ -96,7 +97,6 @@ const productSchema = z.object({
 })
 
 export function ProductsClient() {
-  const [data, setData] = React.useState<ProductData[]>([])
   const [rowSelection, setRowSelection] = React.useState({})
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
@@ -105,42 +105,64 @@ export function ProductsClient() {
     pageIndex: 0,
     pageSize: 10,
   })
-  const [isLoading, setIsLoading] = React.useState(true)
   const router = useRouter()
 
   // Confirmation dialog state
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false)
   const [productToDelete, setProductToDelete] = React.useState<ProductData | null>(null)
-  const [isDeleting, setIsDeleting] = React.useState(false)
 
+  // Redux queries and mutations
+  const {
+    data: productsResponse,
+    isLoading,
+    error: productsError,
+    refetch: refetchProducts,
+  } = useGetProductsQuery()
+
+  const [deleteProduct, { isLoading: isDeleting }] = useDeleteProductMutation()
+
+  const data = productsResponse?.data || []
+  
+  // Debug: Log the products data to see structure
+  console.log("Products data:", data)
+  if (data.length > 0) {
+    console.log("First product:", data[0])
+    console.log("First product ID:", data[0]._id)
+  }
+
+  // Handle products error
   useEffect(() => {
-    loadProducts()
-  }, [])
-
-  // Function to load products
-  const loadProducts = async () => {
-    try {
-      setIsLoading(true)
-      const products = await fetchProducts()
-      setData(products)
-    } catch (error) {
-      console.error("Error loading products:", error)
+    if (productsError) {
+      console.error("Error loading products:", productsError)
       toast.error("Failed to load products", {
         description: "Please try again later."
       })
-    } finally {
-      setIsLoading(false)
     }
-  }
+  }, [productsError])
 
   // Handle view product
   const handleViewProduct = (product: ProductData) => {
-    router.push(`/admin/products/view/${product._id}`)
+    const productId = product._id || (product as any).id
+    if (!productId) {
+      toast.error("Product ID is missing")
+      return
+    }
+    router.push(`/admin/products/view/${productId}`)
   }
 
   // Handle edit product
   const handleEditProduct = (product: ProductData) => {
-    router.push(`/admin/products/edit/${product._id}`)
+    console.log("Edit product clicked:", product)
+    console.log("Product ID:", product._id)
+    console.log("Product ID (id field):", (product as any).id)
+    
+    // Try both _id and id fields since backend transforms the data
+    const productId = product._id || (product as any).id
+    if (!productId) {
+      toast.error("Product ID is missing")
+      return
+    }
+    router.push(`/admin/products/edit/${productId}`)
   }
 
   // Handle delete button click
@@ -153,14 +175,17 @@ export function ProductsClient() {
   const handleDeleteConfirm = async () => {
     if (!productToDelete) return
 
+    const productId = productToDelete._id || (productToDelete as any).id
+    if (!productId) {
+      toast.error("Product ID is missing")
+      return
+    }
+
     try {
-      setIsDeleting(true)
-      
       const loadingToast = toast.loading("Deleting product...")
       
-      const success = await deleteProduct(productToDelete._id)
-      if (success) {
-        await loadProducts()
+      const result = await deleteProduct(productId).unwrap()
+      if (result.success) {
         setIsDeleteDialogOpen(false)
         setProductToDelete(null)
         
@@ -171,16 +196,14 @@ export function ProductsClient() {
       } else {
         toast.dismiss(loadingToast)
         toast.error("Failed to delete product", {
-          description: "Please try again later."
+          description: result.message || "Please try again later."
         })
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error deleting product:", error)
       toast.error("Error deleting product", {
-        description: "An unexpected error occurred. Please try again."
+        description: error?.data?.message || error?.message || "An unexpected error occurred. Please try again."
       })
-    } finally {
-      setIsDeleting(false)
     }
   }
 
@@ -191,7 +214,7 @@ export function ProductsClient() {
   }
 
   // Handle bulk delete
-  const handleBulkDelete = () => {
+  const handleBulkDelete = async () => {
     const selectedRows = table.getFilteredSelectedRowModel().rows
     const selectedProducts = selectedRows.map(row => row.original)
     
@@ -200,20 +223,29 @@ export function ProductsClient() {
       return
     }
 
-    toast.promise(
-      new Promise((resolve) => {
-        setTimeout(() => {
-          setData(data.filter(product => !selectedProducts.find(selected => selected._id === product._id)))
-          setRowSelection({})
-          resolve(true)
-        }, 1000)
-      }),
-      {
-        loading: `Deleting ${selectedProducts.length} product(s)...`,
-        success: `Successfully deleted ${selectedProducts.length} product(s)`,
-        error: "Failed to delete products",
-      }
-    )
+    try {
+      const loadingToast = toast.loading(`Deleting ${selectedProducts.length} product(s)...`)
+      
+      // Delete products one by one
+      const deletePromises = selectedProducts.map(product => {
+        const productId = product._id || (product as any).id
+        if (!productId) {
+          throw new Error(`Product ID missing for product: ${product.title}`)
+        }
+        return deleteProduct(productId).unwrap()
+      })
+      
+      await Promise.all(deletePromises)
+      
+      setRowSelection({})
+      toast.dismiss(loadingToast)
+      toast.success(`Successfully deleted ${selectedProducts.length} product(s)`)
+    } catch (error: any) {
+      console.error("Error deleting products:", error)
+      toast.error("Failed to delete some products", {
+        description: error?.data?.message || error?.message || "Please try again later."
+      })
+    }
   }
 
   // Get category display text
@@ -250,7 +282,7 @@ export function ProductsClient() {
     return <span className="font-medium">${product.regularPrice}</span>
   }
 
-  const columns: ColumnDef<z.infer<typeof productSchema>>[] = [
+  const columns: ColumnDef<ProductData>[] = [
     {
       id: "select",
       header: ({ table }) => (
@@ -380,7 +412,7 @@ export function ProductsClient() {
     },
   ]
 
-  const table = useReactTable({
+  const table = useReactTable<ProductData>({
     data,
     columns,
     state: {
@@ -390,7 +422,7 @@ export function ProductsClient() {
       columnFilters,
       pagination,
     },
-    getRowId: (row) => row._id,
+    getRowId: (row) => row._id || (row as any).id,
     enableRowSelection: true,
     onRowSelectionChange: setRowSelection,
     onSortingChange: setSorting,
@@ -416,6 +448,14 @@ export function ProductsClient() {
             <p className="text-muted-foreground">Manage your product inventory</p>
           </div>
           <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              onClick={() => refetchProducts()}
+              disabled={isLoading}
+            >
+              <Search className="mr-2 h-4 w-4" />
+              {isLoading ? "Refreshing..." : "Refresh"}
+            </Button>
             <Button variant="default" onClick={() => router.push("/admin/products/add")}>
               <Plus className="mr-2 h-4 w-4" />
               Add Product
