@@ -21,6 +21,7 @@ import { clientReducer } from "./features/clients";
 import { courierReducer } from "./features/courier";
 import { categoriesReducer } from "./features/categories";
 import { navbarReducer } from "./features/navbar";
+import { footerReducer } from "./features/footer";
 import { apiSlice } from "./features/api/apiSlice";
 
 const persistConfig = {
@@ -50,6 +51,7 @@ const rootReducer = combineReducers({
   courier: courierReducer,
   categories: categoriesReducer,
   navbar: navbarReducer,
+  footer: footerReducer,
   [apiSlice.reducerPath]: apiSlice.reducer
 });
 const persistedReducer = persistReducer(persistConfig, rootReducer);

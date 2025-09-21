@@ -42,11 +42,13 @@ import {
   type ContentResponse,
 } from "@/lib/services/content-service";
 import { useFooterManagementISR } from "@/hooks/use-footer-management-isr";
+import { useFooterRedux } from "@/hooks/use-footer-redux";
 import { handleFooterUpdate } from "@/actions/revalidate";
 
 // Types for the component
 interface FooterLink {
   id: string;
+  _id?: string; // MongoDB ID
   title: string;
   url: string;
   isExternal: boolean;
@@ -56,6 +58,7 @@ interface FooterLink {
 
 interface FooterSection {
   id: string;
+  _id?: string; // MongoDB ID
   title: string;
   links: FooterLink[];
   isActive: boolean;
@@ -78,6 +81,7 @@ interface ContactInfo {
 
 interface FooterData {
   id?: string;
+  _id?: string; // MongoDB ID
   sections: FooterSection[];
   contactInfo: ContactInfo;
   copyright: string;
@@ -95,7 +99,46 @@ interface FooterManagementProps {
 export function FooterManagement({
   footerData: initialFooterData,
 }: FooterManagementProps) {
-  // Use the custom ISR hook for better data management
+  // Use Redux for footer management
+  const {
+    footer: reduxFooter,
+    loading: reduxLoading,
+    updating: reduxUpdating,
+    deleting: reduxDeleting,
+    error: reduxError,
+    updateError: reduxUpdateError,
+    deleteError: reduxDeleteError,
+    isGeneralModalOpen,
+    isContactModalOpen,
+    isSectionModalOpen,
+    isLinkModalOpen,
+    isDeleteModalOpen,
+    editingSection,
+    editingLink,
+    deletingItem,
+    updateGeneralInfo: updateGeneralInfoRedux,
+    updateContactInfo: updateContactInfoRedux,
+    addSection: addSectionRedux,
+    updateSection: updateSectionRedux,
+    deleteSection: deleteSectionRedux,
+    addLink: addLinkRedux,
+    updateLink: updateLinkRedux,
+    deleteLink: deleteLinkRedux,
+    openGeneralModal,
+    closeGeneralModal,
+    openContactModal,
+    closeContactModal,
+    openSectionModal,
+    closeSectionModal,
+    openLinkModal,
+    closeLinkModal,
+    openDeleteModal,
+    closeDeleteModal,
+    refreshFooter,
+    clearAllErrors,
+  } = useFooterRedux({ autoFetch: true });
+
+  // Use the custom ISR hook for better data management (fallback)
   const {
     footer: isrFooter,
     loading: isLoading,
@@ -108,7 +151,7 @@ export function FooterManagement({
 
   const [footerData, setFooterData] = useState<FooterData | null>(null);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
-  const [isInitialLoading, setIsInitialLoading] = useState(!initialFooterData && !isrFooter);
+  const [isInitialLoading, setIsInitialLoading] = useState(!initialFooterData && !isrFooter && !reduxFooter);
 
   // Modal states
   const [sectionModal, setSectionModal] = useState<{
@@ -158,25 +201,28 @@ export function FooterManagement({
 
   // Load footer data on component mount
   useEffect(() => {
-    if (!initialFooterData && !isrFooter && !footerData) {
+    if (!initialFooterData && !isrFooter && !reduxFooter && !footerData) {
       loadFooterData();
     }
   }, []); // Run only on mount
 
-  // Update footer data when ISR data changes
+  // Update footer data when Redux data changes (priority)
   useEffect(() => {
-    if (isrFooter && !footerData) {
-      // Use ISR data if available
-      const footer = isrFooter;
+    if (reduxFooter && !footerData) {
+      // Use Redux data if available (highest priority)
+      const footer = reduxFooter as any; // Type assertion for Redux data
       setFooterData({
         id: footer._id || footer.id,
+        _id: footer._id,
         sections:
           footer.sections?.map((section: any) => ({
             id: section._id || section.id,
+            _id: section._id,
             title: section.title,
             links:
               section.links?.map((link: any) => ({
                 id: link._id || link.id,
+                _id: link._id,
                 title: link.title,
                 url: link.url,
                 isExternal: link.isExternal,
@@ -185,6 +231,8 @@ export function FooterManagement({
               })) || [],
             isActive: section.isActive,
             order: section.order,
+            createdAt: section.createdAt,
+            updatedAt: section.updatedAt,
           })) || [],
         contactInfo: footer.contactInfo,
         copyright: footer.copyright,
@@ -195,17 +243,61 @@ export function FooterManagement({
         updatedAt: footer.updatedAt,
       });
     }
-  }, [isrFooter, footerData]);
+  }, [reduxFooter, footerData]);
+
+  // Update footer data when ISR data changes (fallback)
+  useEffect(() => {
+    if (isrFooter && !reduxFooter && !footerData) {
+      // Use ISR data if available
+      const footer = isrFooter as any; // Type assertion for ISR data
+      setFooterData({
+        id: footer._id || footer.id,
+        _id: footer._id,
+        sections:
+          footer.sections?.map((section: any) => ({
+            id: section._id || section.id,
+            _id: section._id,
+            title: section.title,
+            links:
+              section.links?.map((link: any) => ({
+                id: link._id || link.id,
+                _id: link._id,
+                title: link.title,
+                url: link.url,
+                isExternal: link.isExternal,
+                isActive: link.isActive,
+                order: link.order,
+              })) || [],
+            isActive: section.isActive,
+            order: section.order,
+            createdAt: section.createdAt,
+            updatedAt: section.updatedAt,
+          })) || [],
+        contactInfo: footer.contactInfo,
+        copyright: footer.copyright,
+        description: footer.description,
+        logoUrl: footer.logoUrl,
+        logoAlt: footer.logoAlt,
+        createdAt: footer.createdAt,
+        updatedAt: footer.updatedAt,
+      });
+    }
+  }, [isrFooter, reduxFooter, footerData]);
 
   // Debug logging (only in development)
   if (process.env.NODE_ENV === "development") {
-    console.log("🔍 FooterManagement ISR Debug:", {
-      isLoading,
-      isrError,
-      dataSource,
-      performanceMetrics,
+    console.log("🔍 FooterManagement Redux Debug:", {
+      reduxLoading,
+      reduxUpdating,
+      reduxDeleting,
+      reduxError,
+      reduxUpdateError,
+      reduxDeleteError,
+      hasReduxFooter: !!reduxFooter,
       hasFooterData: !!footerData,
       sectionsCount: footerData?.sections?.length || 0,
+      isGeneralModalOpen,
+      isContactModalOpen,
     });
   }
 
@@ -214,16 +306,19 @@ export function FooterManagement({
       setIsInitialLoading(true);
       const response = await FooterService.get();
       if (response.success && response.data) {
-        const footer = response.data;
+        const footer = response.data as any; // Type assertion for API data
         setFooterData({
           id: footer._id || footer.id,
+          _id: footer._id,
           sections:
             footer.sections?.map((section: any) => ({
               id: section._id || section.id,
+              _id: section._id,
               title: section.title,
               links:
                 section.links?.map((link: any) => ({
                   id: link._id || link.id,
+                  _id: link._id,
                   title: link.title,
                   url: link.url,
                   isExternal: link.isExternal,
@@ -456,25 +551,11 @@ export function FooterManagement({
   };
 
   const handleUpdateGeneralInfo = async (data: FooterFormData) => {
-    try {
-      const response = await FooterService.update(data);
-      if (response.success) {
-        toast.success("General information updated successfully");
-        setGeneralModal({ isOpen: false });
-        await loadFooterData(); // Reload data
-
-        // Trigger ISR cache revalidation
-        await handleFooterUpdate();
-      } else {
-        toast.error(response.message || "Failed to update general information");
-      }
-    } catch (error) {
-      console.error("Error updating general info:", error);
-      toast.error("Failed to update general information");
-    }
+    // Use Redux for general info updates
+    await updateGeneralInfoRedux(data);
   };
 
-  if (isLoading || isInitialLoading) {
+  if (reduxLoading || isLoading || isInitialLoading) {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="flex items-center gap-2">
@@ -782,7 +863,7 @@ export function FooterManagement({
                 Manage footer branding and general settings
               </p>
             </div>
-            <Button onClick={() => setGeneralModal({ isOpen: true })}>
+            <Button onClick={openGeneralModal}>
               <Save className="h-4 w-4 mr-2" />
               Edit General Info
             </Button>
@@ -913,8 +994,8 @@ export function FooterManagement({
 
       {/* General Info Modal */}
       <Dialog
-        open={generalModal.isOpen}
-        onOpenChange={(open) => setGeneralModal({ isOpen: open })}
+        open={isGeneralModalOpen}
+        onOpenChange={(open) => open ? openGeneralModal() : closeGeneralModal()}
       >
         <DialogContent className="max-w-2xl">
           <DialogHeader>
@@ -922,12 +1003,14 @@ export function FooterManagement({
           </DialogHeader>
           <GeneralInfoForm
             data={{
-              copyright: footerData.copyright,
-              description: footerData.description,
-              logoUrl: footerData.logoUrl,
-              logoAlt: footerData.logoAlt,
+              copyright: footerData?.copyright || '',
+              description: footerData?.description || '',
+              logoUrl: footerData?.logoUrl || '',
+              logoAlt: footerData?.logoAlt || '',
             }}
             onSave={handleUpdateGeneralInfo}
+            onCancel={closeGeneralModal}
+            isLoading={reduxUpdating}
           />
         </DialogContent>
       </Dialog>
@@ -1585,6 +1668,8 @@ function ContactInfoForm({
 function GeneralInfoForm({
   data,
   onSave,
+  onCancel,
+  isLoading = false,
 }: {
   data: {
     copyright: string;
@@ -1593,6 +1678,8 @@ function GeneralInfoForm({
     logoAlt: string;
   };
   onSave: (data: FooterFormData) => Promise<void>;
+  onCancel?: () => void;
+  isLoading?: boolean;
 }) {
   const [formData, setFormData] = useState<FooterFormData>({
     copyright: data.copyright || "",
@@ -1602,6 +1689,9 @@ function GeneralInfoForm({
   });
   const [isSaving, setIsSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  
+  // Use external loading state if provided
+  const actualIsSaving = isLoading || isSaving;
 
   // Reset form when data changes
   useEffect(() => {
@@ -1656,7 +1746,9 @@ function GeneralInfoForm({
     }
 
     try {
-      setIsSaving(true);
+      if (!isLoading) {
+        setIsSaving(true);
+      }
 
       // Clean form data - convert empty strings to undefined for optional fields
       let cleanLogoUrl = formData.logoUrl?.trim();
@@ -1682,7 +1774,9 @@ function GeneralInfoForm({
     } catch (error) {
       console.error("Error saving general info:", error);
     } finally {
-      setIsSaving(false);
+      if (!isLoading) {
+        setIsSaving(false);
+      }
     }
   };
 
@@ -1741,17 +1835,29 @@ function GeneralInfoForm({
           placeholder="Company Footer Logo"
         />
       </div>
-      <Button
-        type="submit"
-        disabled={isSaving || Object.keys(errors).length > 0}
-      >
-        {isSaving ? (
-          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-        ) : (
-          <Save className="h-4 w-4 mr-2" />
+      <div className="flex gap-2">
+        <Button
+          type="submit"
+          disabled={actualIsSaving || Object.keys(errors).length > 0}
+        >
+          {actualIsSaving ? (
+            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+          ) : (
+            <Save className="h-4 w-4 mr-2" />
+          )}
+          {actualIsSaving ? "Saving..." : "Update General Info"}
+        </Button>
+        {onCancel && (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onCancel}
+            disabled={actualIsSaving}
+          >
+            Cancel
+          </Button>
         )}
-        {isSaving ? "Saving..." : "Update General Info"}
-      </Button>
+      </div>
     </form>
   );
 }
